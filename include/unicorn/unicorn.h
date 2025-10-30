@@ -605,6 +605,13 @@ typedef enum uc_control_type {
     // controle if context_save/restore should work with snapshots
     // Write: @args = (int)
     UC_CTL_CONTEXT_MODE,
+    // ARM: Trigger ARMv7-M exception
+    // Write: @args = (uint32_t exc_num)
+    UC_CTL_ARM_EXCEPTION_PEND,
+    // ARM: Set/Get RETTOBASE flag for ARMv7-M exception exit
+    // Write: @args = (int)
+    // Read: @args = (int*)
+    UC_CTL_ARM_EXCEPTION_RETTOBASE,
 } uc_control_type;
 
 /*

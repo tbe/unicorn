@@ -789,3 +789,58 @@ void uc_init(struct uc_struct *uc)
     uc->context_restore = uc_arm_context_restore;
     uc_common_init(uc);
 }
+
+// ARMv7-M exception control helpers for uc_ctl
+
+uc_err uc_arm_v7m_exception_pend(struct uc_struct *uc, uint32_t exc_num)
+{
+    CPUARMState *env = uc->cpu->env_ptr;
+
+    // Check if this is an ARM M-profile CPU
+    if (!arm_feature(env, ARM_FEATURE_M)) {
+        return UC_ERR_ARG;
+    }
+
+    // Validate exception number (1-255)
+    if (exc_num < 1 || exc_num > 255) {
+        return UC_ERR_ARG;
+    }
+
+    // Set pending exception
+    env->v7m.pending_exception = exc_num;
+
+    // Trigger EXCP_IRQ to enter exception handler at next step
+    uc->cpu->exception_index = EXCP_IRQ;
+
+    return UC_ERR_OK;
+}
+
+uc_err uc_arm_v7m_exception_set_rettobase(struct uc_struct *uc, int value)
+{
+    CPUARMState *env = uc->cpu->env_ptr;
+
+    // Check if this is an ARM M-profile CPU
+    if (!arm_feature(env, ARM_FEATURE_M)) {
+        return UC_ERR_ARG;
+    }
+
+    env->v7m.rettobase = (bool)value;
+    return UC_ERR_OK;
+}
+
+uc_err uc_arm_v7m_exception_get_rettobase(struct uc_struct *uc, int *value)
+{
+    CPUARMState *env = uc->cpu->env_ptr;
+
+    // Check if this is an ARM M-profile CPU
+    if (!arm_feature(env, ARM_FEATURE_M)) {
+        return UC_ERR_ARG;
+    }
+
+    if (!value) {
+        return UC_ERR_ARG;
+    }
+
+    *value = (int)env->v7m.rettobase;
+    return UC_ERR_OK;
+}

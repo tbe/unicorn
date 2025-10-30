@@ -16,4 +16,10 @@ uc_err reg_write_aarch64(void *env, int mode, unsigned int regid,
 
 void uc_init_arm(struct uc_struct *uc);
 void uc_init_aarch64(struct uc_struct *uc);
+
+// ARMv7-M exception control (uc_ctl helpers - internal use only)
+uc_err uc_arm_v7m_exception_pend(struct uc_struct *uc, uint32_t exc_num);
+uc_err uc_arm_v7m_exception_set_rettobase(struct uc_struct *uc, int value);
+uc_err uc_arm_v7m_exception_get_rettobase(struct uc_struct *uc, int *value);
+
 #endif

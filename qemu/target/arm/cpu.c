@@ -281,6 +281,10 @@ static void arm_cpu_reset(CPUState *dev)
         env->regs[13] = initial_msp & 0xFFFFFFFC;
         env->regs[15] = initial_pc & ~1;
         env->thumb = initial_pc & 1;
+
+        /* Unicorn: Initialize ARMv7-M exception handling extensions */
+        env->v7m.pending_exception = 0;  /* No pending async exception */
+        env->v7m.rettobase = true;       /* Default: return to Thread mode */
     }
 
     /* AArch32 has a hard highvec setting of 0xFFFF0000.  If we are currently

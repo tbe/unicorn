@@ -523,6 +523,9 @@ typedef struct CPUARMState {
         uint32_t fpdscr[M_REG_NUM_BANKS];
         uint32_t cpacr[M_REG_NUM_BANKS];
         uint32_t nsacr;
+        /* Unicorn: ARMv7-M exception handling extensions */
+        uint32_t pending_exception;  /* Pending async exception from uc_ctl (0 = none) */
+        bool rettobase;              /* Return-to-base flag (user-controlled via uc_ctl) */
     } v7m;
 
     /* Information associated with an exception about to be taken:
@@ -928,6 +931,11 @@ unsigned int gt_cntfrq_period_ns(ARMCPU *cpu);
 
 void arm_cpu_do_interrupt(CPUState *cpu);
 void arm_v7m_cpu_do_interrupt(CPUState *cpu);
+
+// Unicorn: ARMv7-M exception handling without NVIC (used by cpu-exec.c)
+void uc_arm_v7m_exception_entry(ARMCPU *cpu);
+void do_v7m_exception_exit(ARMCPU *cpu);
+
 bool arm_cpu_exec_interrupt(CPUState *cpu, int int_req);
 
 hwaddr arm_cpu_get_phys_page_attrs_debug(CPUState *cpu, vaddr addr,

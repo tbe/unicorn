@@ -21,6 +21,42 @@
 #include "arm_ldst.h"
 #include "exec/cpu_ldst.h"
 
+/**
+ * Unicorn: Map QEMU internal exception indices to ARM exception numbers
+ */
+static uint32_t uc_arm_v7m_map_exception(CPUState *cpu, CPUARMState *env)
+{
+    switch (cpu->exception_index) {
+        case EXCP_UDEF:       // Undefined instruction
+        case EXCP_NOCP:       // No coprocessor
+        case EXCP_INVSTATE:   // Invalid state
+        case EXCP_STKOF:      // Stack overflow
+        case EXCP_UNALIGNED:  // Unaligned access
+            return ARMV7M_EXCP_USAGE;
+
+        case EXCP_SWI:        // Supervisor call
+            return ARMV7M_EXCP_SVC;
+
+        case EXCP_PREFETCH_ABORT:
+        case EXCP_DATA_ABORT:
+            // Memory faults - for now map to HardFault
+            // Could be ARMV7M_EXCP_MEM (4) or ARMV7M_EXCP_BUS (5)
+            // depending on fault status registers
+            return ARMV7M_EXCP_HARD;
+
+        case EXCP_BKPT:
+            return ARMV7M_EXCP_DEBUG;
+
+        case EXCP_IRQ:
+            // Asynchronous interrupt - use pending_exception set by uc_ctl
+            return env->v7m.pending_exception;
+
+        default:
+            // Unknown exception - default to HardFault
+            return ARMV7M_EXCP_HARD;
+    }
+}
+
 static void v7m_msr_xpsr(CPUARMState *env, uint32_t mask,
                          uint32_t reg, uint32_t val)
 {
@@ -173,6 +209,10 @@ pend_fault:
 }
 
 void armv7m_nvic_set_pending(void *opaque, int irq, bool secure)
+{
+}
+
+void armv7m_nvic_acknowledge_irq(void *opaque)
 {
 }
 
@@ -565,7 +605,7 @@ static uint32_t *get_v7m_sp_ptr(CPUARMState *env, bool secure, bool threadmode,
     }
 }
 
-#if 0
+// Unicorn: Enabled for ARMv7-M exception handling
 static bool arm_v7m_load_vector(ARMCPU *cpu, int exc, bool targets_secure,
                                 uint32_t *pvec)
 {
@@ -643,7 +683,6 @@ load_fail:
     // armv7m_nvic_set_pending_derived(env->nvic, ARMV7M_EXCP_HARD, exc_secure);
     return false;
 }
-#endif
 
 static uint32_t v7m_integrity_sig(CPUARMState *env, uint32_t lr)
 {
@@ -661,7 +700,7 @@ static uint32_t v7m_integrity_sig(CPUARMState *env, uint32_t lr)
     return sig;
 }
 
-#if 0
+// Unicorn: Enabled for ARMv7-M exception handling
 static bool v7m_push_callee_stack(ARMCPU *cpu, uint32_t lr, bool dotailchain,
                                   bool ignore_faults)
 {
@@ -738,13 +777,10 @@ static bool v7m_push_callee_stack(ARMCPU *cpu, uint32_t lr, bool dotailchain,
 
     return !stacked_ok;
 }
-#endif
 
 static void v7m_exception_taken(ARMCPU *cpu, uint32_t lr, bool dotailchain,
                                 bool ignore_stackfaults)
 {
-    return; // FIXME
-#if 0
     /*
      * Do the "take the exception" parts of exception entry,
      * but not the pushing of state to the stack. This is
@@ -756,7 +792,9 @@ static void v7m_exception_taken(ARMCPU *cpu, uint32_t lr, bool dotailchain,
     int exc;
     bool push_failed = false;
 
-    armv7m_nvic_get_pending_irq_info(env->nvic, &exc, &targets_secure);
+    // Unicorn: Get exception from pending_exception field instead of NVIC
+    exc = env->v7m.pending_exception;
+    targets_secure = env->v7m.secure;  // Use current security state
     qemu_log_mask(CPU_LOG_INT, "...taking pending %s exception %d\n",
                   targets_secure ? "secure" : "nonsecure", exc);
 
@@ -879,7 +917,6 @@ static void v7m_exception_taken(ARMCPU *cpu, uint32_t lr, bool dotailchain,
     env->regs[15] = addr & 0xfffffffe;
     env->thumb = addr & 1;
     arm_rebuild_hflags(env);
-#endif
 }
 
 bool armv7m_nvic_neg_prio_requested(void *opaque, bool secure)
@@ -1247,9 +1284,9 @@ static bool v7m_push_stack(ARMCPU *cpu)
     return !stacked_ok;
 }
 
-static void do_v7m_exception_exit(ARMCPU *cpu)
+void do_v7m_exception_exit(ARMCPU *cpu)  // Unicorn: made non-static
 {
-    return; // FIXME
+    // Unicorn: Enabled exception exit logic
     CPUARMState *env = &cpu->env;
     uint32_t excret;
     uint32_t xpsr, xpsr_mask;
@@ -1343,28 +1380,8 @@ static void do_v7m_exception_exit(ARMCPU *cpu)
         }
     }
 
-#if 0
-    switch (armv7m_nvic_complete_irq(env->nvic, env->v7m.exception,
-                                     exc_secure)) {
-    case -1:
-        /* attempt to exit an exception that isn't active */
-        ufault = true;
-        break;
-    case 0:
-        /* still an irq active now */
-        break;
-    case 1:
-        /*
-         * We returned to base exception level, no nesting.
-         * (In the pseudocode this is written using "NestedActivation != 1"
-         * where we have 'rettobase == false'.)
-         */
-        rettobase = true;
-        break;
-    default:
-        g_assert_not_reached();
-    }
-#endif
+    // Unicorn: Use user-controlled rettobase flag instead of NVIC
+    rettobase = env->v7m.rettobase;
 
     return_to_handler = !(excret & R_V7M_EXCRET_MODE_MASK);
     return_to_sp_process = excret & R_V7M_EXCRET_SPSEL_MASK;
@@ -2186,6 +2203,62 @@ void arm_v7m_cpu_do_interrupt(CPUState *cs)
         lr |= R_V7M_EXCRET_MODE_MASK;
     }
 
+    ignore_stackfaults = v7m_push_stack(cpu);
+    v7m_exception_taken(cpu, lr, false, ignore_stackfaults);
+}
+
+/*
+ * Unicorn: Exception entry without NVIC dependency
+ * Extracted from arm_v7m_cpu_do_interrupt() - the LR setup and
+ * stack push/exception taken logic (lines 2155-2190 above).
+ * This allows Unicorn to perform exception entry using QEMU's
+ * complete logic without requiring NVIC.
+ *
+ * Takes the exception_index from cpu->exception_index, maps it to
+ * an ARM exception number, and stores it in pending_exception.
+ */
+void uc_arm_v7m_exception_entry(ARMCPU *cpu)
+{
+    CPUState *cs = CPU(cpu);
+    CPUARMState *env = &cpu->env;
+    uint32_t lr;
+    bool ignore_stackfaults;
+
+    /* Map QEMU exception_index to ARM exception number */
+    env->v7m.pending_exception = uc_arm_v7m_map_exception(cs, env);
+
+    /* Build LR value (from QEMU arm_v7m_cpu_do_interrupt) */
+    if (arm_feature(env, ARM_FEATURE_V8)) {
+        lr = R_V7M_EXCRET_RES1_MASK |
+            R_V7M_EXCRET_DCRS_MASK;
+        /*
+         * The S bit indicates whether we should return to Secure
+         * or NonSecure (ie our current state).
+         * The ES bit indicates whether we're taking this exception
+         * to Secure or NonSecure (ie our target state). We set it
+         * later, in v7m_exception_taken().
+         * The SPSEL bit is also set in v7m_exception_taken() for v8M.
+         */
+        if (env->v7m.secure) {
+            lr |= R_V7M_EXCRET_S_MASK;
+        }
+    } else {
+        lr = R_V7M_EXCRET_RES1_MASK |
+            R_V7M_EXCRET_S_MASK |
+            R_V7M_EXCRET_DCRS_MASK |
+            R_V7M_EXCRET_ES_MASK;
+        if (env->v7m.control[M_REG_NS] & R_V7M_CONTROL_SPSEL_MASK) {
+            lr |= R_V7M_EXCRET_SPSEL_MASK;
+        }
+    }
+    if (!(env->v7m.control[M_REG_S] & R_V7M_CONTROL_FPCA_MASK)) {
+        lr |= R_V7M_EXCRET_FTYPE_MASK;
+    }
+    if (!arm_v7m_is_handler_mode(env)) {
+        lr |= R_V7M_EXCRET_MODE_MASK;
+    }
+
+    /* Push stack and take exception (uses QEMU's complete logic) */
     ignore_stackfaults = v7m_push_stack(cpu);
     v7m_exception_taken(cpu, lr, false, ignore_stackfaults);
 }

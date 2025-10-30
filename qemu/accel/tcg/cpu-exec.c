@@ -402,6 +402,22 @@ static inline bool cpu_handle_exception(CPUState *cpu, int *ret)
         CPUPPCState *env = &(POWERPC_CPU(uc->cpu)->env);
         env->nip += 4;
 #endif
+#if defined(TARGET_ARM)
+        CPUARMState *env = &(ARM_CPU(uc->cpu)->env);
+        if (arm_feature(env, ARM_FEATURE_M)) {
+            // ARMv7-M exception handling
+            if (cpu->exception_index == EXCP_EXCEPTION_EXIT) {
+                // Exception Exit: use QEMU's complete logic
+                do_v7m_exception_exit(ARM_CPU(cpu));
+                cpu->exception_index = -1;
+                return false;  // Continue execution
+            }
+
+            // Exception Entry: use QEMU's complete logic
+            // Maps exception_index to ARM exception number internally
+            uc_arm_v7m_exception_entry(ARM_CPU(cpu));
+        }
+#endif
         // Unicorn: call registered interrupt callbacks
         catched = false;
         HOOK_FOREACH_VAR_DECLARE;

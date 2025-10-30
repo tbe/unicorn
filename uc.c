@@ -2977,6 +2977,40 @@ uc_err uc_ctl(uc_engine *uc, uc_control_type control, ...)
         restore_jit_state(uc);
         break;
 
+#if defined(UNICORN_HAS_ARM)
+    case UC_CTL_ARM_EXCEPTION_PEND: {
+        UC_INIT(uc);
+
+        if (rw != UC_CTL_IO_WRITE) {
+            err = UC_ERR_ARG;
+            break;
+        }
+
+        uint32_t exc_num = va_arg(args, uint32_t);
+        err = uc_arm_v7m_exception_pend(uc, exc_num);
+
+        restore_jit_state(uc);
+        break;
+    }
+
+    case UC_CTL_ARM_EXCEPTION_RETTOBASE: {
+        UC_INIT(uc);
+
+        if (rw == UC_CTL_IO_WRITE) {
+            int value = va_arg(args, int);
+            err = uc_arm_v7m_exception_set_rettobase(uc, value);
+        } else if (rw == UC_CTL_IO_READ) {
+            int *ptr = va_arg(args, int*);
+            err = uc_arm_v7m_exception_get_rettobase(uc, ptr);
+        } else {
+            err = UC_ERR_ARG;
+        }
+
+        restore_jit_state(uc);
+        break;
+    }
+#endif
+
     default:
         err = UC_ERR_ARG;
         break;

@@ -228,6 +228,23 @@ typedef enum uc_arm_reg {
     UC_ARM_REG_IP = UC_ARM_REG_R12,
 } uc_arm_reg;
 
+// ARMv7-M Exception Control Helper Macros
+
+// Trigger an ARMv7-M exception (async interrupts, etc.)
+// Usage: uc_arm_exception_pend(uc, 16); // Trigger IRQ0 (exception 16)
+#define uc_arm_exception_pend(uc, exc_num) \
+    uc_ctl(uc, UC_CTL_WRITE(UC_CTL_ARM_EXCEPTION_PEND, 1), (uint32_t)(exc_num))
+
+// Set RETTOBASE flag (return to Thread mode vs Handler mode)
+// Usage: uc_arm_exception_set_rettobase(uc, 1); // Return to Thread mode
+#define uc_arm_exception_set_rettobase(uc, value) \
+    uc_ctl(uc, UC_CTL_WRITE(UC_CTL_ARM_EXCEPTION_RETTOBASE, 1), (int)(value))
+
+// Get RETTOBASE flag
+// Usage: int rettobase; uc_arm_exception_get_rettobase(uc, &rettobase);
+#define uc_arm_exception_get_rettobase(uc, ptr) \
+    uc_ctl(uc, UC_CTL_READ(UC_CTL_ARM_EXCEPTION_RETTOBASE, 1), (int*)(ptr))
+
 #ifdef __cplusplus
 }
 #endif
