@@ -31,6 +31,7 @@
 
 #include "exec/helper-proto.h"
 #include "exec/helper-gen.h"
+/* UNICORN-MOD: context-passing */
 #include "uc_priv.h"
 
 #define ENABLE_ARCH_4T    arm_dc_feature(s, ARM_FEATURE_V4T)
@@ -57,12 +58,15 @@ static const char * const regnames[] =
       "r8", "r9", "r10", "r11", "r12", "r13", "r14", "pc" };
 
 /* Function prototypes for gen_ functions calling Neon helpers.  */
+/* UNICORN-MOD: tcg-threading */
 typedef void NeonGenThreeOpEnvFn(TCGContext *, TCGv_i32, TCGv_env, TCGv_i32,
                                  TCGv_i32, TCGv_i32);
 /* Function prototypes for gen_ functions for fix point conversions */
+/* UNICORN-MOD: tcg-threading */
 typedef void VFPGenFixPointFn(TCGContext *, TCGv_i32, TCGv_i32, TCGv_i32, TCGv_ptr);
 
 /* initialize TCG globals.  */
+/* UNICORN-MOD: context-passing */
 void arm_translate_init(struct uc_struct *uc)
 {
     TCGContext *tcg_ctx = uc->tcg_ctx;
@@ -166,6 +170,7 @@ static inline int get_a32_user_mem_index(DisasContext *s)
     }
 }
 
+/* UNICORN-MOD: tcg-threading */
 static inline TCGv_i32 load_cpu_offset(TCGContext *tcg_ctx, int offset)
 {
     TCGv_i32 tmp = tcg_temp_new_i32(tcg_ctx);
@@ -175,6 +180,7 @@ static inline TCGv_i32 load_cpu_offset(TCGContext *tcg_ctx, int offset)
 
 #define load_cpu_field(tcg_ctx, name) load_cpu_offset(tcg_ctx, offsetof(CPUARMState, name))
 
+/* UNICORN-MOD: tcg-threading */
 static inline void store_cpu_offset(TCGContext *tcg_ctx, TCGv_i32 var, int offset)
 {
     tcg_gen_st_i32(tcg_ctx, var, tcg_ctx->cpu_env, offset);
@@ -272,6 +278,7 @@ static void store_sp_checked(DisasContext *s, TCGv_i32 var)
 #define gen_uxtb16(var) gen_helper_uxtb16(tcg_ctx, var, var)
 
 
+/* UNICORN-MOD: tcg-threading */
 static inline void gen_set_cpsr(TCGContext *tcg_ctx, TCGv_i32 var, uint32_t mask)
 {
     TCGv_i32 tmp_mask = tcg_const_i32(tcg_ctx, mask);
@@ -281,6 +288,7 @@ static inline void gen_set_cpsr(TCGContext *tcg_ctx, TCGv_i32 var, uint32_t mask
 /* Set NZCV flags from the high 4 bits of var.  */
 #define gen_set_nzcv(var) gen_set_cpsr(tcg_ctx, var, CPSR_NZCV)
 
+/* UNICORN-MOD: tcg-threading */
 static void gen_exception_internal(TCGContext *tcg_ctx, int excp)
 {
     TCGv_i32 tcg_excp = tcg_const_i32(tcg_ctx, excp);
@@ -331,6 +339,7 @@ static inline bool is_singlestepping(DisasContext *s)
     return s->base.singlestep_enabled || s->ss_active;
 }
 
+/* UNICORN-MOD: tcg-threading */
 static void gen_smul_dual(TCGContext *tcg_ctx, TCGv_i32 a, TCGv_i32 b)
 {
     TCGv_i32 tmp1 = tcg_temp_new_i32(tcg_ctx);
@@ -347,6 +356,7 @@ static void gen_smul_dual(TCGContext *tcg_ctx, TCGv_i32 a, TCGv_i32 b)
 }
 
 /* Byteswap each halfword.  */
+/* UNICORN-MOD: tcg-threading */
 static void gen_rev16(TCGContext *tcg_ctx, TCGv_i32 dest, TCGv_i32 var)
 {
     TCGv_i32 tmp = tcg_temp_new_i32(tcg_ctx);
@@ -361,6 +371,7 @@ static void gen_rev16(TCGContext *tcg_ctx, TCGv_i32 dest, TCGv_i32 var)
 }
 
 /* Byteswap low halfword and sign extend.  */
+/* UNICORN-MOD: tcg-threading */
 static void gen_revsh(TCGContext *tcg_ctx, TCGv_i32 dest, TCGv_i32 var)
 {
     tcg_gen_ext16u_i32(tcg_ctx, var, var);
@@ -369,6 +380,7 @@ static void gen_revsh(TCGContext *tcg_ctx, TCGv_i32 dest, TCGv_i32 var)
 }
 
 /* 32x32->64 multiply.  Marks inputs as dead.  */
+/* UNICORN-MOD: tcg-threading */
 static TCGv_i64 gen_mulu_i64_i32(TCGContext *tcg_ctx, TCGv_i32 a, TCGv_i32 b)
 {
     TCGv_i32 lo = tcg_temp_new_i32(tcg_ctx);
@@ -387,6 +399,7 @@ static TCGv_i64 gen_mulu_i64_i32(TCGContext *tcg_ctx, TCGv_i32 a, TCGv_i32 b)
     return ret;
 }
 
+/* UNICORN-MOD: tcg-threading */
 static TCGv_i64 gen_muls_i64_i32(TCGContext *tcg_ctx, TCGv_i32 a, TCGv_i32 b)
 {
     TCGv_i32 lo = tcg_temp_new_i32(tcg_ctx);
@@ -406,6 +419,7 @@ static TCGv_i64 gen_muls_i64_i32(TCGContext *tcg_ctx, TCGv_i32 a, TCGv_i32 b)
 }
 
 /* Swap low and high halfwords.  */
+/* UNICORN-MOD: tcg-threading */
 static void gen_swap_half(TCGContext *tcg_ctx, TCGv_i32 var)
 {
     tcg_gen_rotri_i32(tcg_ctx, var, var, 16);
@@ -418,6 +432,7 @@ static void gen_swap_half(TCGContext *tcg_ctx, TCGv_i32 var)
     t0 = (t0 + t1) ^ tmp;
  */
 
+/* UNICORN-MOD: tcg-threading */
 static void gen_add16(TCGContext *tcg_ctx, TCGv_i32 dest, TCGv_i32 t0, TCGv_i32 t1)
 {
     TCGv_i32 tmp = tcg_temp_new_i32(tcg_ctx);
@@ -431,6 +446,7 @@ static void gen_add16(TCGContext *tcg_ctx, TCGv_i32 dest, TCGv_i32 t0, TCGv_i32 
 }
 
 /* Set N and Z flags from var.  */
+/* UNICORN-MOD: tcg-threading */
 static inline void gen_logic_CC(TCGContext *tcg_ctx, TCGv_i32 var)
 {
     tcg_gen_mov_i32(tcg_ctx, tcg_ctx->cpu_NF, var);
@@ -438,6 +454,7 @@ static inline void gen_logic_CC(TCGContext *tcg_ctx, TCGv_i32 var)
 }
 
 /* dest = T0 + T1 + CF. */
+/* UNICORN-MOD: tcg-threading */
 static void gen_add_carry(TCGContext *tcg_ctx, TCGv_i32 dest, TCGv_i32 t0, TCGv_i32 t1)
 {
     tcg_gen_add_i32(tcg_ctx, dest, t0, t1);
@@ -445,6 +462,7 @@ static void gen_add_carry(TCGContext *tcg_ctx, TCGv_i32 dest, TCGv_i32 t0, TCGv_
 }
 
 /* dest = T0 - T1 + CF - 1.  */
+/* UNICORN-MOD: tcg-threading */
 static void gen_sub_carry(TCGContext *tcg_ctx, TCGv_i32 dest, TCGv_i32 t0, TCGv_i32 t1)
 {
     tcg_gen_sub_i32(tcg_ctx, dest, t0, t1);
@@ -452,6 +470,7 @@ static void gen_sub_carry(TCGContext *tcg_ctx, TCGv_i32 dest, TCGv_i32 t0, TCGv_
     tcg_gen_subi_i32(tcg_ctx, dest, dest, 1);
 }
 
+/* UNICORN-MOD: tcg-threading */
 static inline void mb_tcg_opcode_cmp_hook(TCGContext *tcg_ctx, TCGv_i32 v0, TCGv_i32 v1, uint32_t size)
 {
     uc_engine *uc = tcg_ctx->uc;
@@ -476,6 +495,7 @@ static inline void mb_tcg_opcode_cmp_hook(TCGContext *tcg_ctx, TCGv_i32 v0, TCGv
 }
 
 /* dest = T0 + T1. Compute C, N, V and Z flags */
+/* UNICORN-MOD: tcg-threading */
 static void gen_add_CC(TCGContext *tcg_ctx, TCGv_i32 dest, TCGv_i32 t0, TCGv_i32 t1)
 {
     mb_tcg_opcode_cmp_hook(tcg_ctx, t0, t1, 32);
@@ -492,6 +512,7 @@ static void gen_add_CC(TCGContext *tcg_ctx, TCGv_i32 dest, TCGv_i32 t0, TCGv_i32
 }
 
 /* dest = T0 + T1 + CF.  Compute C, N, V and Z flags */
+/* UNICORN-MOD: tcg-threading */
 static void gen_adc_CC(TCGContext *tcg_ctx, TCGv_i32 dest, TCGv_i32 t0, TCGv_i32 t1)
 {
     TCGv_i32 tmp = tcg_temp_new_i32(tcg_ctx);
@@ -520,6 +541,7 @@ static void gen_adc_CC(TCGContext *tcg_ctx, TCGv_i32 dest, TCGv_i32 t0, TCGv_i32
 }
 
 /* dest = T0 - T1. Compute C, N, V and Z flags */
+/* UNICORN-MOD: tcg-threading */
 static void gen_sub_CC(TCGContext *tcg_ctx, TCGv_i32 dest, TCGv_i32 t0, TCGv_i32 t1)
 {
     mb_tcg_opcode_cmp_hook(tcg_ctx, t0, t1, 32);
@@ -537,6 +559,7 @@ static void gen_sub_CC(TCGContext *tcg_ctx, TCGv_i32 dest, TCGv_i32 t0, TCGv_i32
 }
 
 /* dest = T0 + ~T1 + CF.  Compute C, N, V and Z flags */
+/* UNICORN-MOD: tcg-threading */
 static void gen_sbc_CC(TCGContext *tcg_ctx, TCGv_i32 dest, TCGv_i32 t0, TCGv_i32 t1)
 {
     TCGv_i32 tmp = tcg_temp_new_i32(tcg_ctx);
@@ -545,6 +568,7 @@ static void gen_sbc_CC(TCGContext *tcg_ctx, TCGv_i32 dest, TCGv_i32 t0, TCGv_i32
     tcg_temp_free_i32(tcg_ctx, tmp);
 }
 
+/* UNICORN-MOD: tcg-threading */
 #define GEN_SHIFT(name)                                               \
 static void gen_##name(TCGContext *tcg_ctx, TCGv_i32 dest, TCGv_i32 t0, TCGv_i32 t1)       \
 {                                                                     \
@@ -564,6 +588,7 @@ GEN_SHIFT(shl)
 GEN_SHIFT(shr)
 #undef GEN_SHIFT
 
+/* UNICORN-MOD: tcg-threading */
 static void gen_sar(TCGContext *tcg_ctx, TCGv_i32 dest, TCGv_i32 t0, TCGv_i32 t1)
 {
     TCGv_i32 tmp1, tmp2;
@@ -576,12 +601,14 @@ static void gen_sar(TCGContext *tcg_ctx, TCGv_i32 dest, TCGv_i32 t0, TCGv_i32 t1
     tcg_temp_free_i32(tcg_ctx, tmp1);
 }
 
+/* UNICORN-MOD: tcg-threading */
 static void shifter_out_im(TCGContext *tcg_ctx, TCGv_i32 var, int shift)
 {
     tcg_gen_extract_i32(tcg_ctx, tcg_ctx->cpu_CF, var, shift, 1);
 }
 
 /* Shift by immediate.  Includes special handling for shift == 0.  */
+/* UNICORN-MOD: tcg-threading */
 static inline void gen_arm_shift_im(TCGContext *tcg_ctx, TCGv_i32 var, int shiftop,
                                     int shift, int flags)
 {
@@ -631,6 +658,7 @@ static inline void gen_arm_shift_im(TCGContext *tcg_ctx, TCGv_i32 var, int shift
     }
 };
 
+/* UNICORN-MOD: tcg-threading */
 static inline void gen_arm_shift_reg(TCGContext *tcg_ctx, TCGv_i32 var, int shiftop,
                                      TCGv_i32 shift, int flags)
 {
@@ -642,6 +670,7 @@ static inline void gen_arm_shift_reg(TCGContext *tcg_ctx, TCGv_i32 var, int shif
         case 3: gen_helper_ror_cc(tcg_ctx, var, tcg_ctx->cpu_env, var, shift); break;
         }
     } else {
+        /* UNICORN-MOD: tcg-threading */
         switch (shiftop) {
         case 0:
             gen_shl(tcg_ctx, var, var, shift);
@@ -663,6 +692,7 @@ static inline void gen_arm_shift_reg(TCGContext *tcg_ctx, TCGv_i32 var, int shif
  * Generate a conditional based on ARM condition code cc.
  * This is common between ARM and Aarch64 targets.
  */
+/* UNICORN-MOD: tcg-threading */
 void arm_test_cc(TCGContext *tcg_ctx, DisasCompare *cmp, int cc)
 {
     TCGv_i32 value;
@@ -673,6 +703,7 @@ void arm_test_cc(TCGContext *tcg_ctx, DisasCompare *cmp, int cc)
     case 0: /* eq: Z */
     case 1: /* ne: !Z */
         cond = TCG_COND_EQ;
+        /* UNICORN-MOD: tcg-threading */
         value = tcg_ctx->cpu_ZF;
         break;
 
@@ -698,6 +729,7 @@ void arm_test_cc(TCGContext *tcg_ctx, DisasCompare *cmp, int cc)
     case 9: /* ls: !C || Z -> !(C && !Z) */
         cond = TCG_COND_NE;
         value = tcg_temp_new_i32(tcg_ctx);
+        /* UNICORN-MOD: tcg-threading */
         global = false;
         /* CF is 1 for C, so -CF is an all-bits-set mask for C;
            ZF is non-zero for !Z; so AND the two subexpressions.  */
@@ -749,6 +781,7 @@ void arm_test_cc(TCGContext *tcg_ctx, DisasCompare *cmp, int cc)
     cmp->value_global = global;
 }
 
+/* UNICORN-MOD: tcg-threading */
 void arm_free_cc(TCGContext *tcg_ctx, DisasCompare *cmp)
 {
     if (!cmp->value_global) {
@@ -756,11 +789,13 @@ void arm_free_cc(TCGContext *tcg_ctx, DisasCompare *cmp)
     }
 }
 
+/* UNICORN-MOD: tcg-threading */
 void arm_jump_cc(TCGContext *tcg_ctx, DisasCompare *cmp, TCGLabel *label)
 {
     tcg_gen_brcondi_i32(tcg_ctx, cmp->cond, cmp->value, 0, label);
 }
 
+/* UNICORN-MOD: tcg-threading */
 void arm_gen_test_cc(TCGContext *tcg_ctx, int cc, TCGLabel *label)
 {
     DisasCompare cmp;
@@ -846,6 +881,7 @@ static inline void gen_bx_excret_final_code(DisasContext *s)
     }
 
     /* Is the new PC value in the magic range indicating exception return? */
+    /* UNICORN-MOD: tcg-threading */
     tcg_gen_brcondi_i32(tcg_ctx, TCG_COND_GEU, tcg_ctx->cpu_R[15], min_magic, excret_label);
     /* No: end the TB as we would for a DISAS_JMP */
     if (is_singlestepping(s)) {
@@ -982,6 +1018,7 @@ static void gen_aa32_st_i32(DisasContext *s, TCGv_i32 val, TCGv_i32 a32,
     }
 
     addr = gen_aa32_addr(s, a32, opc);
+    /* UNICORN-MOD: tcg-threading */
     tcg_gen_qemu_st_i32(tcg_ctx, val, addr, index, opc);
     tcg_temp_free(tcg_ctx, addr);
 }
@@ -1159,6 +1196,7 @@ static inline void gen_hlt(DisasContext *s, int imm)
     unallocated_encoding(s);
 }
 
+/* UNICORN-MOD: tcg-threading */
 static TCGv_ptr get_fpstatus_ptr(TCGContext *tcg_ctx, int neon)
 {
     TCGv_ptr statusptr = tcg_temp_new_ptr(tcg_ctx);
@@ -1216,6 +1254,7 @@ neon_element_offset(int reg, int element, MemOp size)
     return neon_reg_offset(reg, 0) + ofs;
 }
 
+/* UNICORN-MOD: tcg-threading */
 static TCGv_i32 neon_load_reg(TCGContext *tcg_ctx, int reg, int pass)
 {
     TCGv_i32 tmp = tcg_temp_new_i32(tcg_ctx);
@@ -1223,6 +1262,7 @@ static TCGv_i32 neon_load_reg(TCGContext *tcg_ctx, int reg, int pass)
     return tmp;
 }
 
+/* UNICORN-MOD: tcg-threading */
 static void neon_load_element(TCGContext *tcg_ctx, TCGv_i32 var, int reg, int ele, MemOp mop)
 {
     long offset = neon_element_offset(reg, ele, mop & MO_SIZE);
@@ -1243,6 +1283,7 @@ static void neon_load_element(TCGContext *tcg_ctx, TCGv_i32 var, int reg, int el
     }
 }
 
+/* UNICORN-MOD: tcg-threading */
 static void neon_load_element64(TCGContext *tcg_ctx, TCGv_i64 var, int reg, int ele, MemOp mop)
 {
     long offset = neon_element_offset(reg, ele, mop & MO_SIZE);
@@ -1266,12 +1307,14 @@ static void neon_load_element64(TCGContext *tcg_ctx, TCGv_i64 var, int reg, int 
     }
 }
 
+/* UNICORN-MOD: tcg-threading */
 static void neon_store_reg(TCGContext *tcg_ctx, int reg, int pass, TCGv_i32 var)
 {
     tcg_gen_st_i32(tcg_ctx, var, tcg_ctx->cpu_env, neon_reg_offset(reg, pass));
     tcg_temp_free_i32(tcg_ctx, var);
 }
 
+/* UNICORN-MOD: tcg-threading */
 static void neon_store_element(TCGContext *tcg_ctx, int reg, int ele, MemOp size, TCGv_i32 var)
 {
     long offset = neon_element_offset(reg, ele, size);
@@ -1292,6 +1335,7 @@ static void neon_store_element(TCGContext *tcg_ctx, int reg, int ele, MemOp size
     }
 }
 
+/* UNICORN-MOD: tcg-threading */
 static void neon_store_element64(TCGContext *tcg_ctx, int reg, int ele, MemOp size, TCGv_i64 var)
 {
     long offset = neon_element_offset(reg, ele, size);
@@ -1315,26 +1359,31 @@ static void neon_store_element64(TCGContext *tcg_ctx, int reg, int ele, MemOp si
     }
 }
 
+/* UNICORN-MOD: tcg-threading */
 static inline void neon_load_reg64(TCGContext *tcg_ctx, TCGv_i64 var, int reg)
 {
     tcg_gen_ld_i64(tcg_ctx, var, tcg_ctx->cpu_env, vfp_reg_offset(1, reg));
 }
 
+/* UNICORN-MOD: tcg-threading */
 static inline void neon_store_reg64(TCGContext *tcg_ctx, TCGv_i64 var, int reg)
 {
     tcg_gen_st_i64(tcg_ctx, var, tcg_ctx->cpu_env, vfp_reg_offset(1, reg));
 }
 
+/* UNICORN-MOD: tcg-threading */
 static inline void neon_load_reg32(TCGContext *tcg_ctx, TCGv_i32 var, int reg)
 {
     tcg_gen_ld_i32(tcg_ctx, var, tcg_ctx->cpu_env, vfp_reg_offset(false, reg));
 }
 
+/* UNICORN-MOD: tcg-threading */
 static inline void neon_store_reg32(TCGContext *tcg_ctx, TCGv_i32 var, int reg)
 {
     tcg_gen_st_i32(tcg_ctx, var, tcg_ctx->cpu_env, vfp_reg_offset(false, reg));
 }
 
+/* UNICORN-MOD: tcg-threading */
 static TCGv_ptr vfp_reg_ptr(TCGContext *tcg_ctx, bool dp, int reg)
 {
     TCGv_ptr ret = tcg_temp_new_ptr(tcg_ctx);
@@ -1347,16 +1396,19 @@ static TCGv_ptr vfp_reg_ptr(TCGContext *tcg_ctx, bool dp, int reg)
 /* Include the VFP decoder */
 #include "translate-vfp.inc.c"
 
+/* UNICORN-MOD: tcg-threading */
 static inline void iwmmxt_load_reg(TCGContext *tcg_ctx, TCGv_i64 var, int reg)
 {
     tcg_gen_ld_i64(tcg_ctx, var, tcg_ctx->cpu_env, offsetof(CPUARMState, iwmmxt.regs[reg]));
 }
 
+/* UNICORN-MOD: tcg-threading */
 static inline void iwmmxt_store_reg(TCGContext *tcg_ctx, TCGv_i64 var, int reg)
 {
     tcg_gen_st_i64(tcg_ctx, var, tcg_ctx->cpu_env, offsetof(CPUARMState, iwmmxt.regs[reg]));
 }
 
+/* UNICORN-MOD: tcg-threading */
 static inline TCGv_i32 iwmmxt_load_creg(TCGContext *tcg_ctx, int reg)
 {
     TCGv_i32 var = tcg_temp_new_i32(tcg_ctx);
@@ -1364,40 +1416,47 @@ static inline TCGv_i32 iwmmxt_load_creg(TCGContext *tcg_ctx, int reg)
     return var;
 }
 
+/* UNICORN-MOD: tcg-threading */
 static inline void iwmmxt_store_creg(TCGContext *tcg_ctx, int reg, TCGv_i32 var)
 {
     tcg_gen_st_i32(tcg_ctx, var, tcg_ctx->cpu_env, offsetof(CPUARMState, iwmmxt.cregs[reg]));
     tcg_temp_free_i32(tcg_ctx, var);
 }
 
+/* UNICORN-MOD: tcg-threading */
 static inline void gen_op_iwmmxt_movq_wRn_M0(TCGContext *tcg_ctx, int rn)
 {
     iwmmxt_store_reg(tcg_ctx, tcg_ctx->cpu_M0, rn);
 }
 
+/* UNICORN-MOD: tcg-threading */
 static inline void gen_op_iwmmxt_movq_M0_wRn(TCGContext *tcg_ctx, int rn)
 {
     iwmmxt_load_reg(tcg_ctx, tcg_ctx->cpu_M0, rn);
 }
 
+/* UNICORN-MOD: tcg-threading */
 static inline void gen_op_iwmmxt_orq_M0_wRn(TCGContext *tcg_ctx, int rn)
 {
     iwmmxt_load_reg(tcg_ctx, tcg_ctx->cpu_V1, rn);
     tcg_gen_or_i64(tcg_ctx, tcg_ctx->cpu_M0, tcg_ctx->cpu_M0, tcg_ctx->cpu_V1);
 }
 
+/* UNICORN-MOD: tcg-threading */
 static inline void gen_op_iwmmxt_andq_M0_wRn(TCGContext *tcg_ctx, int rn)
 {
     iwmmxt_load_reg(tcg_ctx, tcg_ctx->cpu_V1, rn);
     tcg_gen_and_i64(tcg_ctx, tcg_ctx->cpu_M0, tcg_ctx->cpu_M0, tcg_ctx->cpu_V1);
 }
 
+/* UNICORN-MOD: tcg-threading */
 static inline void gen_op_iwmmxt_xorq_M0_wRn(TCGContext *tcg_ctx, int rn)
 {
     iwmmxt_load_reg(tcg_ctx, tcg_ctx->cpu_V1, rn);
     tcg_gen_xor_i64(tcg_ctx, tcg_ctx->cpu_M0, tcg_ctx->cpu_M0, tcg_ctx->cpu_V1);
 }
 
+/* UNICORN-MOD: tcg-threading */
 #define IWMMXT_OP(name) \
 static inline void gen_op_iwmmxt_##name##_M0_wRn(TCGContext *tcg_ctx, int rn) \
 { \
@@ -1405,6 +1464,7 @@ static inline void gen_op_iwmmxt_##name##_M0_wRn(TCGContext *tcg_ctx, int rn) \
     gen_helper_iwmmxt_##name(tcg_ctx, tcg_ctx->cpu_M0, tcg_ctx->cpu_M0, tcg_ctx->cpu_V1); \
 }
 
+/* UNICORN-MOD: tcg-threading */
 #define IWMMXT_OP_ENV(name) \
 static inline void gen_op_iwmmxt_##name##_M0_wRn(TCGContext *tcg_ctx, int rn) \
 { \
@@ -1417,6 +1477,7 @@ IWMMXT_OP_ENV(name##b) \
 IWMMXT_OP_ENV(name##w) \
 IWMMXT_OP_ENV(name##l)
 
+/* UNICORN-MOD: tcg-threading */
 #define IWMMXT_OP_ENV1(name) \
 static inline void gen_op_iwmmxt_##name##_M0(TCGContext *tcg_ctx) \
 { \
@@ -1478,6 +1539,7 @@ IWMMXT_OP_ENV(packsw)
 IWMMXT_OP_ENV(packsl)
 IWMMXT_OP_ENV(packsq)
 
+/* UNICORN-MOD: tcg-threading */
 static void gen_op_iwmmxt_set_mup(TCGContext *tcg_ctx)
 {
     TCGv_i32 tmp;
@@ -1486,6 +1548,7 @@ static void gen_op_iwmmxt_set_mup(TCGContext *tcg_ctx)
     store_cpu_field(tcg_ctx, tmp, iwmmxt.cregs[ARM_IWMMXT_wCon]);
 }
 
+/* UNICORN-MOD: tcg-threading */
 static void gen_op_iwmmxt_set_cup(TCGContext *tcg_ctx)
 {
     TCGv_i32 tmp;
@@ -1494,6 +1557,7 @@ static void gen_op_iwmmxt_set_cup(TCGContext *tcg_ctx)
     store_cpu_field(tcg_ctx, tmp, iwmmxt.cregs[ARM_IWMMXT_wCon]);
 }
 
+/* UNICORN-MOD: tcg-threading */
 static void gen_op_iwmmxt_setpsr_nz(TCGContext *tcg_ctx)
 {
     TCGv_i32 tmp = tcg_temp_new_i32(tcg_ctx);
@@ -1501,6 +1565,7 @@ static void gen_op_iwmmxt_setpsr_nz(TCGContext *tcg_ctx)
     store_cpu_field(tcg_ctx, tmp, iwmmxt.cregs[ARM_IWMMXT_wCASF]);
 }
 
+/* UNICORN-MOD: tcg-threading */
 static inline void gen_op_iwmmxt_addl_M0_wRn(TCGContext *tcg_ctx, int rn)
 {
     iwmmxt_load_reg(tcg_ctx, tcg_ctx->cpu_V1, rn);
@@ -1552,6 +1617,7 @@ static inline int gen_iwmmxt_address(DisasContext *s, uint32_t insn,
     return 0;
 }
 
+/* UNICORN-MOD: tcg-threading */
 static inline int gen_iwmmxt_shift(TCGContext *tcg_ctx, uint32_t insn, uint32_t mask, TCGv_i32 dest)
 {
     int rd = (insn >> 0) & 0xf;
@@ -1610,6 +1676,7 @@ static int disas_iwmmxt_insn(DisasContext *s, uint32_t insn)
         if (insn & ARM_CP_RW_BIT) {
             if ((insn >> 28) == 0xf) {                  /* WLDRW wCx */
                 tmp = tcg_temp_new_i32(tcg_ctx);
+                /* UNICORN-MOD: tcg-threading */
                 gen_aa32_ld32u(s, tmp, addr, get_mem_index(s));
                 iwmmxt_store_creg(tcg_ctx, wrd, tmp);
             } else {
@@ -2055,6 +2122,7 @@ static int disas_iwmmxt_insn(DisasContext *s, uint32_t insn)
             gen_helper_iwmmxt_addcb(tcg_ctx, tcg_ctx->cpu_M0, tcg_ctx->cpu_M0);
             break;
         case 1:
+            /* UNICORN-MOD: tcg-threading */
             gen_helper_iwmmxt_addcw(tcg_ctx, tcg_ctx->cpu_M0, tcg_ctx->cpu_M0);
             break;
         case 2:
@@ -2346,6 +2414,7 @@ static int disas_iwmmxt_insn(DisasContext *s, uint32_t insn)
                 gen_op_iwmmxt_minsw_M0_wRn(tcg_ctx, rd1);
             else
                 gen_op_iwmmxt_minuw_M0_wRn(tcg_ctx, rd1);
+            /* UNICORN-MOD: tcg-threading */
             break;
         case 2:
             if (insn & (1 << 21))
@@ -2403,6 +2472,7 @@ static int disas_iwmmxt_insn(DisasContext *s, uint32_t insn)
         gen_op_iwmmxt_movq_wRn_M0(tcg_ctx, wrd);
         gen_op_iwmmxt_set_mup(tcg_ctx);
         break;
+    /* UNICORN-MOD: tcg-threading */
     case 0x01a: case 0x11a: case 0x21a: case 0x31a:     /* WSUB */
     case 0x41a: case 0x51a: case 0x61a: case 0x71a:
     case 0x81a: case 0x91a: case 0xa1a: case 0xb1a:
@@ -2448,6 +2518,7 @@ static int disas_iwmmxt_insn(DisasContext *s, uint32_t insn)
         break;
     case 0x01e: case 0x11e: case 0x21e: case 0x31e:     /* WSHUFH */
     case 0x41e: case 0x51e: case 0x61e: case 0x71e:
+    /* UNICORN-MOD: tcg-threading */
     case 0x81e: case 0x91e: case 0xa1e: case 0xb1e:
     case 0xc1e: case 0xd1e: case 0xe1e: case 0xf1e:
         wrd = (insn >> 12) & 0xf;
@@ -2566,12 +2637,14 @@ static int disas_iwmmxt_insn(DisasContext *s, uint32_t insn)
         default:
             tcg_temp_free_i32(tcg_ctx, tmp2);
             tcg_temp_free_i32(tcg_ctx, tmp);
+            /* UNICORN-MOD: tcg-threading */
             return 1;
         }
         tcg_temp_free_i32(tcg_ctx, tmp2);
         tcg_temp_free_i32(tcg_ctx, tmp);
         gen_op_iwmmxt_movq_wRn_M0(tcg_ctx, wrd);
         gen_op_iwmmxt_set_mup(tcg_ctx);
+        /* UNICORN-MOD: tcg-threading */
         break;
     default:
         return 1;
@@ -2586,6 +2659,7 @@ static int disas_dsp_insn(DisasContext *s, uint32_t insn)
 {
     TCGContext *tcg_ctx = s->uc->tcg_ctx;
     int acc, rd0, rd1, rdhi, rdlo;
+    /* UNICORN-MOD: tcg-threading */
     TCGv_i32 tmp, tmp2;
 
     if ((insn & 0x0ff00f10) == 0x0e200010) {
@@ -2650,6 +2724,7 @@ static int disas_dsp_insn(DisasContext *s, uint32_t insn)
     return 1;
 }
 
+/* UNICORN-MOD: msvc-compat */
 #ifdef _MSC_VER
 #define VFP_REG_SHR_NEG(insn, n) ((insn) << -(n))
 #define VFP_SREG_NEG(insn, bigbit, smallbit) \
@@ -2689,6 +2764,7 @@ static int disas_dsp_insn(DisasContext *s, uint32_t insn)
 #define VFP_DREG_M(reg, insn) VFP_DREG(reg, insn,  0,  5)
 #endif
 
+/* UNICORN-MOD: tcg-threading */
 static void gen_neon_dup_low16(TCGContext *tcg_ctx, TCGv_i32 var)
 {
     TCGv_i32 tmp = tcg_temp_new_i32(tcg_ctx);
@@ -2698,6 +2774,7 @@ static void gen_neon_dup_low16(TCGContext *tcg_ctx, TCGv_i32 var)
     tcg_temp_free_i32(tcg_ctx, tmp);
 }
 
+/* UNICORN-MOD: tcg-threading */
 static void gen_neon_dup_high16(TCGContext *tcg_ctx, TCGv_i32 var)
 {
     TCGv_i32 tmp = tcg_temp_new_i32(tcg_ctx);
@@ -2714,6 +2791,7 @@ static inline bool use_goto_tb(DisasContext *s, target_ulong dest)
            ((s->base.pc_next - 1) & TARGET_PAGE_MASK) == (dest & TARGET_PAGE_MASK);
 }
 
+/* UNICORN-MOD: tcg-threading */
 static void gen_goto_ptr(TCGContext *tcg_ctx)
 {
     tcg_gen_lookup_and_goto_ptr(tcg_ctx);
@@ -2748,6 +2826,7 @@ static inline void gen_jmp (DisasContext *s, uint32_t dest)
     }
 }
 
+/* UNICORN-MOD: tcg-threading */
 static inline void gen_mulxy(TCGContext *tcg_ctx, TCGv_i32 t0, TCGv_i32 t1, int x, int y)
 {
     if (x)
@@ -2822,6 +2901,7 @@ static int gen_set_psr_im(DisasContext *s, uint32_t mask, int spsr, uint32_t val
 {
     TCGContext *tcg_ctx = s->uc->tcg_ctx;
     TCGv_i32 tmp;
+    /* UNICORN-MOD: tcg-threading */
     tmp = tcg_temp_new_i32(tcg_ctx);
     tcg_gen_movi_i32(tcg_ctx, tmp, val);
     return gen_set_psr(s, mask, spsr, tmp);
@@ -2898,6 +2978,7 @@ static bool msr_banked_access_decode(DisasContext *s, int r, int sysm, int rn,
     } else {
         /* general purpose registers for other modes */
         switch (sysm) {
+        /* UNICORN-MOD: tcg-threading */
         case 0x0:   /* 0b00xxx : r8_usr ... r14_usr */
         case 0x1:   /* 0b00xxx : r8_usr ... r14_usr */
         case 0x2:   /* 0b00xxx : r8_usr ... r14_usr */
@@ -3032,6 +3113,7 @@ static void gen_mrs_banked(DisasContext *s, int r, int sysm, int rn)
     gen_set_condexec(s);
     gen_set_pc_im(s, s->pc_curr);
     tcg_reg = tcg_temp_new_i32(tcg_ctx);
+    /* UNICORN-MOD: tcg-threading */
     tcg_tgtmode = tcg_const_i32(tcg_ctx, tgtmode);
     tcg_regno = tcg_const_i32(tcg_ctx, regno);
     gen_helper_mrs_banked(tcg_ctx, tcg_reg, tcg_ctx->cpu_env, tcg_tgtmode, tcg_regno);
@@ -3079,6 +3161,7 @@ static void gen_exception_return(DisasContext *s, TCGv_i32 pc)
 
 #define CPU_V001 tcg_ctx->cpu_V0, tcg_ctx->cpu_V0, tcg_ctx->cpu_V1
 
+/* UNICORN-MOD: tcg-threading */
 static inline void gen_neon_add(TCGContext *tcg_ctx, int size, TCGv_i32 t0, TCGv_i32 t1)
 {
     switch (size) {
@@ -3089,6 +3172,7 @@ static inline void gen_neon_add(TCGContext *tcg_ctx, int size, TCGv_i32 t0, TCGv
     }
 }
 
+/* UNICORN-MOD: tcg-threading */
 static inline void gen_neon_rsb(TCGContext *tcg_ctx, int size, TCGv_i32 t0, TCGv_i32 t1)
 {
     switch (size) {
@@ -3105,6 +3189,7 @@ static inline void gen_neon_rsb(TCGContext *tcg_ctx, int size, TCGv_i32 t0, TCGv
 #define gen_helper_neon_pmin_s32  tcg_gen_smin_i32
 #define gen_helper_neon_pmin_u32  tcg_gen_umin_i32
 
+/* UNICORN-MOD: tcg-threading */
 #define GEN_NEON_INTEGER_OP_ENV(name) do { \
     switch ((size << 1) | u) { \
     case 0: \
@@ -3151,6 +3236,7 @@ static inline void gen_neon_rsb(TCGContext *tcg_ctx, int size, TCGv_i32 t0, TCGv
     default: return 1; \
     }} while (0)
 
+/* UNICORN-MOD: tcg-threading */
 static TCGv_i32 neon_load_scratch(TCGContext *tcg_ctx, int scratch)
 {
     TCGv_i32 tmp = tcg_temp_new_i32(tcg_ctx);
@@ -3158,12 +3244,14 @@ static TCGv_i32 neon_load_scratch(TCGContext *tcg_ctx, int scratch)
     return tmp;
 }
 
+/* UNICORN-MOD: tcg-threading */
 static void neon_store_scratch(TCGContext *tcg_ctx, int scratch, TCGv_i32 var)
 {
     tcg_gen_st_i32(tcg_ctx, var, tcg_ctx->cpu_env, offsetof(CPUARMState, vfp.scratch[scratch]));
     tcg_temp_free_i32(tcg_ctx, var);
 }
 
+/* UNICORN-MOD: tcg-threading */
 static inline TCGv_i32 neon_get_scalar(TCGContext *tcg_ctx, int size, int reg)
 {
     TCGv_i32 tmp;
@@ -3180,6 +3268,7 @@ static inline TCGv_i32 neon_get_scalar(TCGContext *tcg_ctx, int size, int reg)
     return tmp;
 }
 
+/* UNICORN-MOD: tcg-threading */
 static int gen_neon_unzip(TCGContext *tcg_ctx, int rd, int rm, int size, int q)
 {
     TCGv_ptr pd, pm;
@@ -3220,6 +3309,7 @@ static int gen_neon_unzip(TCGContext *tcg_ctx, int rd, int rm, int size, int q)
     return 0;
 }
 
+/* UNICORN-MOD: tcg-threading */
 static int gen_neon_zip(TCGContext *tcg_ctx, int rd, int rm, int size, int q)
 {
     TCGv_ptr pd, pm;
@@ -3260,6 +3350,7 @@ static int gen_neon_zip(TCGContext *tcg_ctx, int rd, int rm, int size, int q)
     return 0;
 }
 
+/* UNICORN-MOD: tcg-threading */
 static void gen_neon_trn_u8(TCGContext *tcg_ctx, TCGv_i32 t0, TCGv_i32 t1)
 {
     TCGv_i32 rd, tmp;
@@ -3282,6 +3373,7 @@ static void gen_neon_trn_u8(TCGContext *tcg_ctx, TCGv_i32 t0, TCGv_i32 t1)
     tcg_temp_free_i32(tcg_ctx, rd);
 }
 
+/* UNICORN-MOD: tcg-threading */
 static void gen_neon_trn_u16(TCGContext *tcg_ctx, TCGv_i32 t0, TCGv_i32 t1)
 {
     TCGv_i32 rd, tmp;
@@ -3322,6 +3414,7 @@ static struct {
 
 /* Translate a NEON load/store element instruction.  Return nonzero if the
    instruction is invalid.  */
+/* UNICORN-MOD: tcg-threading */
 static int disas_neon_ls_insn(DisasContext *s, uint32_t insn)
 {
     TCGContext *tcg_ctx = s->uc->tcg_ctx;
@@ -3370,6 +3463,7 @@ static int disas_neon_ls_insn(DisasContext *s, uint32_t insn)
         /* Catch UNDEF cases for bad values of align field */
         switch (op & 0xc) {
         case 4:
+            /* UNICORN-MOD: tcg-threading */
             if (((insn >> 5) & 1) == 1) {
                 return 1;
             }
@@ -3570,6 +3664,7 @@ static int disas_neon_ls_insn(DisasContext *s, uint32_t insn)
     return 0;
 }
 
+/* UNICORN-MOD: tcg-threading */
 static inline void gen_neon_narrow(TCGContext *tcg_ctx, int size, TCGv_i32 dest, TCGv_i64 src)
 {
     switch (size) {
@@ -3580,6 +3675,7 @@ static inline void gen_neon_narrow(TCGContext *tcg_ctx, int size, TCGv_i32 dest,
     }
 }
 
+/* UNICORN-MOD: tcg-threading */
 static inline void gen_neon_narrow_sats(TCGContext *tcg_ctx, int size, TCGv_i32 dest, TCGv_i64 src)
 {
     switch (size) {
@@ -3590,6 +3686,7 @@ static inline void gen_neon_narrow_sats(TCGContext *tcg_ctx, int size, TCGv_i32 
     }
 }
 
+/* UNICORN-MOD: tcg-threading */
 static inline void gen_neon_narrow_satu(TCGContext *tcg_ctx, int size, TCGv_i32 dest, TCGv_i64 src)
 {
     switch (size) {
@@ -3600,6 +3697,7 @@ static inline void gen_neon_narrow_satu(TCGContext *tcg_ctx, int size, TCGv_i32 
     }
 }
 
+/* UNICORN-MOD: tcg-threading */
 static inline void gen_neon_unarrow_sats(TCGContext *tcg_ctx, int size, TCGv_i32 dest, TCGv_i64 src)
 {
     switch (size) {
@@ -3610,6 +3708,7 @@ static inline void gen_neon_unarrow_sats(TCGContext *tcg_ctx, int size, TCGv_i32
     }
 }
 
+/* UNICORN-MOD: tcg-threading */
 static inline void gen_neon_shift_narrow(TCGContext *tcg_ctx, int size, TCGv_i32 var, TCGv_i32 shift,
                                          int q, int u)
 {
@@ -3644,6 +3743,7 @@ static inline void gen_neon_shift_narrow(TCGContext *tcg_ctx, int size, TCGv_i32
     }
 }
 
+/* UNICORN-MOD: tcg-threading */
 static inline void gen_neon_widen(TCGContext *tcg_ctx, TCGv_i64 dest, TCGv_i32 src, int size, int u)
 {
     if (u) {
@@ -3664,6 +3764,7 @@ static inline void gen_neon_widen(TCGContext *tcg_ctx, TCGv_i64 dest, TCGv_i32 s
     tcg_temp_free_i32(tcg_ctx, src);
 }
 
+/* UNICORN-MOD: tcg-threading */
 static inline void gen_neon_addl(TCGContext *tcg_ctx, int size)
 {
     switch (size) {
@@ -3674,6 +3775,7 @@ static inline void gen_neon_addl(TCGContext *tcg_ctx, int size)
     }
 }
 
+/* UNICORN-MOD: tcg-threading */
 static inline void gen_neon_subl(TCGContext *tcg_ctx, int size)
 {
     switch (size) {
@@ -3684,6 +3786,7 @@ static inline void gen_neon_subl(TCGContext *tcg_ctx, int size)
     }
 }
 
+/* UNICORN-MOD: tcg-threading */
 static inline void gen_neon_negl(TCGContext *tcg_ctx, TCGv_i64 var, int size)
 {
     switch (size) {
@@ -3696,6 +3799,7 @@ static inline void gen_neon_negl(TCGContext *tcg_ctx, TCGv_i64 var, int size)
     }
 }
 
+/* UNICORN-MOD: tcg-threading */
 static inline void gen_neon_addl_saturate(TCGContext *tcg_ctx, TCGv_i64 op0, TCGv_i64 op1, int size)
 {
     switch (size) {
@@ -3705,6 +3809,7 @@ static inline void gen_neon_addl_saturate(TCGContext *tcg_ctx, TCGv_i64 op0, TCG
     }
 }
 
+/* UNICORN-MOD: tcg-threading */
 static inline void gen_neon_mull(TCGContext *tcg_ctx, TCGv_i64 dest, TCGv_i32 a, TCGv_i32 b,
                                  int size, int u)
 {
@@ -3736,6 +3841,7 @@ static inline void gen_neon_mull(TCGContext *tcg_ctx, TCGv_i64 dest, TCGv_i32 a,
     }
 }
 
+/* UNICORN-MOD: tcg-threading */
 static void gen_neon_narrow_op(TCGContext *tcg_ctx, int op, int u, int size,
                                TCGv_i32 dest, TCGv_i64 src)
 {
@@ -4003,30 +4109,35 @@ static int do_v81_helper(DisasContext *s, gen_helper_gvec_3_ptr *fn,
     return 1;
 }
 
+/* UNICORN-MOD: tcg-threading */
 static void gen_ssra8_i64(TCGContext *tcg_ctx, TCGv_i64 d, TCGv_i64 a, int64_t shift)
 {
     tcg_gen_vec_sar8i_i64(tcg_ctx, a, a, shift);
     tcg_gen_vec_add8_i64(tcg_ctx, d, d, a);
 }
 
+/* UNICORN-MOD: tcg-threading */
 static void gen_ssra16_i64(TCGContext *tcg_ctx, TCGv_i64 d, TCGv_i64 a, int64_t shift)
 {
     tcg_gen_vec_sar16i_i64(tcg_ctx, a, a, shift);
     tcg_gen_vec_add16_i64(tcg_ctx, d, d, a);
 }
 
+/* UNICORN-MOD: tcg-threading */
 static void gen_ssra32_i32(TCGContext *tcg_ctx, TCGv_i32 d, TCGv_i32 a, int32_t shift)
 {
     tcg_gen_sari_i32(tcg_ctx, a, a, shift);
     tcg_gen_add_i32(tcg_ctx, d, d, a);
 }
 
+/* UNICORN-MOD: tcg-threading */
 static void gen_ssra64_i64(TCGContext *tcg_ctx, TCGv_i64 d, TCGv_i64 a, int64_t shift)
 {
     tcg_gen_sari_i64(tcg_ctx, a, a, shift);
     tcg_gen_add_i64(tcg_ctx, d, d, a);
 }
 
+/* UNICORN-MOD: tcg-threading */
 static void gen_ssra_vec(TCGContext *tcg_ctx, unsigned vece, TCGv_vec d, TCGv_vec a, int64_t sh)
 {
     tcg_gen_sari_vec(tcg_ctx, vece, a, a, sh);
@@ -4061,30 +4172,35 @@ const GVecGen2i ssra_op[4] = {
       .vece = MO_64 },
 };
 
+/* UNICORN-MOD: tcg-threading */
 static void gen_usra8_i64(TCGContext *tcg_ctx, TCGv_i64 d, TCGv_i64 a, int64_t shift)
 {
     tcg_gen_vec_shr8i_i64(tcg_ctx, a, a, shift);
     tcg_gen_vec_add8_i64(tcg_ctx, d, d, a);
 }
 
+/* UNICORN-MOD: tcg-threading */
 static void gen_usra16_i64(TCGContext *tcg_ctx, TCGv_i64 d, TCGv_i64 a, int64_t shift)
 {
     tcg_gen_vec_shr16i_i64(tcg_ctx, a, a, shift);
     tcg_gen_vec_add16_i64(tcg_ctx, d, d, a);
 }
 
+/* UNICORN-MOD: tcg-threading */
 static void gen_usra32_i32(TCGContext *tcg_ctx, TCGv_i32 d, TCGv_i32 a, int32_t shift)
 {
     tcg_gen_shri_i32(tcg_ctx, a, a, shift);
     tcg_gen_add_i32(tcg_ctx, d, d, a);
 }
 
+/* UNICORN-MOD: tcg-threading */
 static void gen_usra64_i64(TCGContext *tcg_ctx, TCGv_i64 d, TCGv_i64 a, int64_t shift)
 {
     tcg_gen_shri_i64(tcg_ctx, a, a, shift);
     tcg_gen_add_i64(tcg_ctx, d, d, a);
 }
 
+/* UNICORN-MOD: tcg-threading */
 static void gen_usra_vec(TCGContext *tcg_ctx, unsigned vece, TCGv_vec d, TCGv_vec a, int64_t sh)
 {
     tcg_gen_shri_vec(tcg_ctx, vece, a, a, sh);
@@ -4119,6 +4235,7 @@ const GVecGen2i usra_op[4] = {
       .vece = MO_64, },
 };
 
+/* UNICORN-MOD: tcg-threading */
 static void gen_shr8_ins_i64(TCGContext *tcg_ctx, TCGv_i64 d, TCGv_i64 a, int64_t shift)
 {
     uint64_t mask = dup_const(MO_8, 0xff >> shift);
@@ -4131,6 +4248,7 @@ static void gen_shr8_ins_i64(TCGContext *tcg_ctx, TCGv_i64 d, TCGv_i64 a, int64_
     tcg_temp_free_i64(tcg_ctx, t);
 }
 
+/* UNICORN-MOD: tcg-threading */
 static void gen_shr16_ins_i64(TCGContext *tcg_ctx, TCGv_i64 d, TCGv_i64 a, int64_t shift)
 {
     uint64_t mask = dup_const(MO_16, 0xffff >> shift);
@@ -4143,18 +4261,21 @@ static void gen_shr16_ins_i64(TCGContext *tcg_ctx, TCGv_i64 d, TCGv_i64 a, int64
     tcg_temp_free_i64(tcg_ctx, t);
 }
 
+/* UNICORN-MOD: tcg-threading */
 static void gen_shr32_ins_i32(TCGContext *tcg_ctx, TCGv_i32 d, TCGv_i32 a, int32_t shift)
 {
     tcg_gen_shri_i32(tcg_ctx, a, a, shift);
     tcg_gen_deposit_i32(tcg_ctx, d, d, a, 0, 32 - shift);
 }
 
+/* UNICORN-MOD: tcg-threading */
 static void gen_shr64_ins_i64(TCGContext *tcg_ctx, TCGv_i64 d, TCGv_i64 a, int64_t shift)
 {
     tcg_gen_shri_i64(tcg_ctx, a, a, shift);
     tcg_gen_deposit_i64(tcg_ctx, d, d, a, 0, 64 - shift);
 }
 
+/* UNICORN-MOD: tcg-threading */
 static void gen_shr_ins_vec(TCGContext *tcg_ctx, unsigned vece, TCGv_vec d, TCGv_vec a, int64_t sh)
 {
     if (sh == 0) {
@@ -4199,6 +4320,7 @@ const GVecGen2i sri_op[4] = {
       .vece = MO_64 },
 };
 
+/* UNICORN-MOD: tcg-threading */
 static void gen_shl8_ins_i64(TCGContext *tcg_ctx, TCGv_i64 d, TCGv_i64 a, int64_t shift)
 {
     uint64_t mask = dup_const(MO_8, 0xff << shift);
@@ -4211,6 +4333,7 @@ static void gen_shl8_ins_i64(TCGContext *tcg_ctx, TCGv_i64 d, TCGv_i64 a, int64_
     tcg_temp_free_i64(tcg_ctx, t);
 }
 
+/* UNICORN-MOD: tcg-threading */
 static void gen_shl16_ins_i64(TCGContext *tcg_ctx, TCGv_i64 d, TCGv_i64 a, int64_t shift)
 {
     uint64_t mask = dup_const(MO_16, 0xffff << shift);
@@ -4223,16 +4346,19 @@ static void gen_shl16_ins_i64(TCGContext *tcg_ctx, TCGv_i64 d, TCGv_i64 a, int64
     tcg_temp_free_i64(tcg_ctx, t);
 }
 
+/* UNICORN-MOD: tcg-threading */
 static void gen_shl32_ins_i32(TCGContext *tcg_ctx, TCGv_i32 d, TCGv_i32 a, int32_t shift)
 {
     tcg_gen_deposit_i32(tcg_ctx, d, d, a, shift, 32 - shift);
 }
 
+/* UNICORN-MOD: tcg-threading */
 static void gen_shl64_ins_i64(TCGContext *tcg_ctx, TCGv_i64 d, TCGv_i64 a, int64_t shift)
 {
     tcg_gen_deposit_i64(tcg_ctx, d, d, a, shift, 64 - shift);
 }
 
+/* UNICORN-MOD: tcg-threading */
 static void gen_shl_ins_vec(TCGContext *tcg_ctx, unsigned vece, TCGv_vec d, TCGv_vec a, int64_t sh)
 {
     if (sh == 0) {
@@ -4277,60 +4403,70 @@ const GVecGen2i sli_op[4] = {
       .vece = MO_64 },
 };
 
+/* UNICORN-MOD: tcg-threading */
 static void gen_mla8_i32(TCGContext *tcg_ctx, TCGv_i32 d, TCGv_i32 a, TCGv_i32 b)
 {
     gen_helper_neon_mul_u8(tcg_ctx, a, a, b);
     gen_helper_neon_add_u8(tcg_ctx, d, d, a);
 }
 
+/* UNICORN-MOD: tcg-threading */
 static void gen_mls8_i32(TCGContext *tcg_ctx, TCGv_i32 d, TCGv_i32 a, TCGv_i32 b)
 {
     gen_helper_neon_mul_u8(tcg_ctx, a, a, b);
     gen_helper_neon_sub_u8(tcg_ctx, d, d, a);
 }
 
+/* UNICORN-MOD: tcg-threading */
 static void gen_mla16_i32(TCGContext *tcg_ctx, TCGv_i32 d, TCGv_i32 a, TCGv_i32 b)
 {
     gen_helper_neon_mul_u16(tcg_ctx, a, a, b);
     gen_helper_neon_add_u16(tcg_ctx, d, d, a);
 }
 
+/* UNICORN-MOD: tcg-threading */
 static void gen_mls16_i32(TCGContext *tcg_ctx, TCGv_i32 d, TCGv_i32 a, TCGv_i32 b)
 {
     gen_helper_neon_mul_u16(tcg_ctx, a, a, b);
     gen_helper_neon_sub_u16(tcg_ctx, d, d, a);
 }
 
+/* UNICORN-MOD: tcg-threading */
 static void gen_mla32_i32(TCGContext *tcg_ctx, TCGv_i32 d, TCGv_i32 a, TCGv_i32 b)
 {
     tcg_gen_mul_i32(tcg_ctx, a, a, b);
     tcg_gen_add_i32(tcg_ctx, d, d, a);
 }
 
+/* UNICORN-MOD: tcg-threading */
 static void gen_mls32_i32(TCGContext *tcg_ctx, TCGv_i32 d, TCGv_i32 a, TCGv_i32 b)
 {
     tcg_gen_mul_i32(tcg_ctx, a, a, b);
     tcg_gen_sub_i32(tcg_ctx, d, d, a);
 }
 
+/* UNICORN-MOD: tcg-threading */
 static void gen_mla64_i64(TCGContext *tcg_ctx, TCGv_i64 d, TCGv_i64 a, TCGv_i64 b)
 {
     tcg_gen_mul_i64(tcg_ctx, a, a, b);
     tcg_gen_add_i64(tcg_ctx, d, d, a);
 }
 
+/* UNICORN-MOD: tcg-threading */
 static void gen_mls64_i64(TCGContext *tcg_ctx, TCGv_i64 d, TCGv_i64 a, TCGv_i64 b)
 {
     tcg_gen_mul_i64(tcg_ctx, a, a, b);
     tcg_gen_sub_i64(tcg_ctx, d, d, a);
 }
 
+/* UNICORN-MOD: tcg-threading */
 static void gen_mla_vec(TCGContext *tcg_ctx, unsigned vece, TCGv_vec d, TCGv_vec a, TCGv_vec b)
 {
     tcg_gen_mul_vec(tcg_ctx, vece, a, a, b);
     tcg_gen_add_vec(tcg_ctx, vece, d, d, a);
 }
 
+/* UNICORN-MOD: tcg-threading */
 static void gen_mls_vec(TCGContext *tcg_ctx, unsigned vece, TCGv_vec d, TCGv_vec a, TCGv_vec b)
 {
     tcg_gen_mul_vec(tcg_ctx, vece, a, a, b);
@@ -4398,6 +4534,7 @@ const GVecGen3 mls_op[4] = {
 };
 
 /* CMTST : test is "if (X & Y != 0)". */
+/* UNICORN-MOD: tcg-threading */
 static void gen_cmtst_i32(TCGContext *tcg_ctx, TCGv_i32 d, TCGv_i32 a, TCGv_i32 b)
 {
     tcg_gen_and_i32(tcg_ctx, d, a, b);
@@ -4405,6 +4542,7 @@ static void gen_cmtst_i32(TCGContext *tcg_ctx, TCGv_i32 d, TCGv_i32 a, TCGv_i32 
     tcg_gen_neg_i32(tcg_ctx, d, d);
 }
 
+/* UNICORN-MOD: tcg-threading */
 void gen_cmtst_i64(TCGContext *tcg_ctx, TCGv_i64 d, TCGv_i64 a, TCGv_i64 b)
 {
     tcg_gen_and_i64(tcg_ctx, d, a, b);
@@ -4412,10 +4550,12 @@ void gen_cmtst_i64(TCGContext *tcg_ctx, TCGv_i64 d, TCGv_i64 a, TCGv_i64 b)
     tcg_gen_neg_i64(tcg_ctx, d, d);
 }
 
+/* UNICORN-MOD: tcg-threading */
 static void gen_cmtst_vec(TCGContext *tcg_ctx, unsigned vece, TCGv_vec d, TCGv_vec a, TCGv_vec b)
 {
     tcg_gen_and_vec(tcg_ctx, vece, d, a, b);
     tcg_gen_dupi_vec(tcg_ctx, vece, a, 0);
+    /* UNICORN-MOD: tcg-threading */
     tcg_gen_cmp_vec(tcg_ctx, TCG_COND_NE, vece, d, d, a);
 }
 
@@ -4441,6 +4581,7 @@ const GVecGen3 cmtst_op[4] = {
       .vece = MO_64 },
 };
 
+/* UNICORN-MOD: tcg-threading */
 void gen_ushl_i32(TCGContext *tcg_ctx, TCGv_i32 dst, TCGv_i32 src, TCGv_i32 shift)
 {
     TCGv_i32 lval = tcg_temp_new_i32(tcg_ctx);
@@ -4470,6 +4611,7 @@ void gen_ushl_i32(TCGContext *tcg_ctx, TCGv_i32 dst, TCGv_i32 src, TCGv_i32 shif
     tcg_temp_free_i32(tcg_ctx, max);
 }
 
+/* UNICORN-MOD: tcg-threading */
 void gen_ushl_i64(TCGContext *tcg_ctx, TCGv_i64 dst, TCGv_i64 src, TCGv_i64 shift)
 {
     TCGv_i64 lval = tcg_temp_new_i64(tcg_ctx);
@@ -4499,6 +4641,7 @@ void gen_ushl_i64(TCGContext *tcg_ctx, TCGv_i64 dst, TCGv_i64 src, TCGv_i64 shif
     tcg_temp_free_i64(tcg_ctx, max);
 }
 
+/* UNICORN-MOD: tcg-threading */
 static void gen_ushl_vec(TCGContext *tcg_ctx, unsigned vece, TCGv_vec dst,
                          TCGv_vec src, TCGv_vec shift)
 {
@@ -4524,6 +4667,7 @@ static void gen_ushl_vec(TCGContext *tcg_ctx, unsigned vece, TCGv_vec dst,
      * unspecified results, not undefined behaviour (i.e. no trap).
      * Discard out-of-range results after the fact.
      */
+    /* UNICORN-MOD: tcg-threading */
     tcg_gen_shlv_vec(tcg_ctx, vece, lval, src, lsh);
     tcg_gen_shrv_vec(tcg_ctx, vece, rval, src, rsh);
 
@@ -4538,6 +4682,7 @@ static void gen_ushl_vec(TCGContext *tcg_ctx, unsigned vece, TCGv_vec dst,
      * Other tcg hosts have a full set of comparisons and do not care.
      */
     if (vece == MO_8) {
+        /* UNICORN-MOD: tcg-threading */
         tcg_gen_cmp_vec(tcg_ctx, TCG_COND_GEU, vece, lsh, lsh, max);
         tcg_gen_cmp_vec(tcg_ctx, TCG_COND_GEU, vece, rsh, rsh, max);
         tcg_gen_andc_vec(tcg_ctx, vece, lval, lval, lsh);
@@ -4581,6 +4726,7 @@ const GVecGen3 ushl_op[4] = {
       .vece = MO_64 },
 };
 
+/* UNICORN-MOD: tcg-threading */
 void gen_sshl_i32(TCGContext *tcg_ctx, TCGv_i32 dst, TCGv_i32 src, TCGv_i32 shift)
 {
     TCGv_i32 lval = tcg_temp_new_i32(tcg_ctx);
@@ -4611,6 +4757,7 @@ void gen_sshl_i32(TCGContext *tcg_ctx, TCGv_i32 dst, TCGv_i32 src, TCGv_i32 shif
     tcg_temp_free_i32(tcg_ctx, max);
 }
 
+/* UNICORN-MOD: tcg-threading */
 void gen_sshl_i64(TCGContext *tcg_ctx, TCGv_i64 dst, TCGv_i64 src, TCGv_i64 shift)
 {
     TCGv_i64 lval = tcg_temp_new_i64(tcg_ctx);
@@ -4641,6 +4788,7 @@ void gen_sshl_i64(TCGContext *tcg_ctx, TCGv_i64 dst, TCGv_i64 src, TCGv_i64 shif
     tcg_temp_free_i64(tcg_ctx, max);
 }
 
+/* UNICORN-MOD: tcg-threading */
 static void gen_sshl_vec(TCGContext *tcg_ctx, unsigned vece, TCGv_vec dst,
                          TCGv_vec src, TCGv_vec shift)
 {
@@ -4715,6 +4863,7 @@ const GVecGen3 sshl_op[4] = {
       .vece = MO_64 },
 };
 
+/* UNICORN-MOD: tcg-threading */
 static void gen_uqadd_vec(TCGContext *tcg_ctx, unsigned vece, TCGv_vec t, TCGv_vec sat,
                           TCGv_vec a, TCGv_vec b)
 {
@@ -4753,6 +4902,7 @@ const GVecGen4 uqadd_op[4] = {
       .vece = MO_64 },
 };
 
+/* UNICORN-MOD: tcg-threading */
 static void gen_sqadd_vec(TCGContext *tcg_ctx, unsigned vece, TCGv_vec t, TCGv_vec sat,
                           TCGv_vec a, TCGv_vec b)
 {
@@ -4791,6 +4941,7 @@ const GVecGen4 sqadd_op[4] = {
       .vece = MO_64 },
 };
 
+/* UNICORN-MOD: tcg-threading */
 static void gen_uqsub_vec(TCGContext *tcg_ctx, unsigned vece, TCGv_vec t, TCGv_vec sat,
                           TCGv_vec a, TCGv_vec b)
 {
@@ -4809,6 +4960,7 @@ static const TCGOpcode vecop_list_uqsub[] = {
 const GVecGen4 uqsub_op[4] = {
     { .fniv = gen_uqsub_vec,
       .fno = gen_helper_gvec_uqsub_b,
+      /* UNICORN-MOD: tcg-threading */
       .opt_opc = vecop_list_uqsub,
       .write_aofs = true,
       .vece = MO_8 },
@@ -4829,6 +4981,7 @@ const GVecGen4 uqsub_op[4] = {
       .vece = MO_64 },
 };
 
+/* UNICORN-MOD: tcg-threading */
 static void gen_sqsub_vec(TCGContext *tcg_ctx, unsigned vece, TCGv_vec t, TCGv_vec sat,
                           TCGv_vec a, TCGv_vec b)
 {
@@ -4875,6 +5028,7 @@ const GVecGen4 sqsub_op[4] = {
 static int disas_neon_data_insn(DisasContext *s, uint32_t insn)
 {
     TCGContext *tcg_ctx = s->uc->tcg_ctx;
+    /* UNICORN-MOD: tcg-threading */
     int op;
     int q;
     int rd, rn, rm, rd_ofs, rn_ofs, rm_ofs;
@@ -4911,6 +5065,7 @@ static int disas_neon_data_insn(DisasContext *s, uint32_t insn)
     vec_size = q ? 16 : 8;
     rd_ofs = neon_reg_offset(rd, 0);
     rn_ofs = neon_reg_offset(rn, 0);
+    /* UNICORN-MOD: tcg-threading */
     rm_ofs = neon_reg_offset(rm, 0);
 
     if ((insn & (1 << 23)) == 0) {
@@ -4937,6 +5092,7 @@ static int disas_neon_data_insn(DisasContext *s, uint32_t insn)
                 return 1;
             }
             if (!u) { /* SHA-1 */
+                /* UNICORN-MOD: tcg-threading */
                 if (!dc_isar_feature(aa32_sha1, s)) {
                     return 1;
                 }
@@ -4999,6 +5155,7 @@ static int disas_neon_data_insn(DisasContext *s, uint32_t insn)
                 return do_v81_helper(s, gen_helper_gvec_qrdmlsh_s16,
                                      q, rd, rn, rm);
             case 2:
+                /* UNICORN-MOD: tcg-threading */
                 return do_v81_helper(s, gen_helper_gvec_qrdmlsh_s32,
                                      q, rd, rn, rm);
             }
@@ -5043,6 +5200,7 @@ static int disas_neon_data_insn(DisasContext *s, uint32_t insn)
 
         case NEON_3R_VADD_VSUB:
             if (u) {
+                /* UNICORN-MOD: tcg-threading */
                 tcg_gen_gvec_sub(tcg_ctx, size, rd_ofs, rn_ofs, rm_ofs,
                                  vec_size, vec_size);
             } else {
@@ -5078,6 +5236,7 @@ static int disas_neon_data_insn(DisasContext *s, uint32_t insn)
             return 0;
 
         case NEON_3R_VML: /* VMLA, VMLS */
+            /* UNICORN-MOD: tcg-threading */
             tcg_gen_gvec_3(tcg_ctx, rd_ofs, rn_ofs, rm_ofs, vec_size, vec_size,
                            u ? &mls_op[size] : &mla_op[size]);
             return 0;
@@ -5094,6 +5253,7 @@ static int disas_neon_data_insn(DisasContext *s, uint32_t insn)
 
         case NEON_3R_VCGT:
             tcg_gen_gvec_cmp(tcg_ctx, u ? TCG_COND_GTU : TCG_COND_GT, size,
+                             /* UNICORN-MOD: tcg-threading */
                              rd_ofs, rn_ofs, rm_ofs, vec_size, vec_size);
             return 0;
 
@@ -5143,6 +5303,7 @@ static int disas_neon_data_insn(DisasContext *s, uint32_t insn)
                                                  tcg_ctx->cpu_V1, tcg_ctx->cpu_V0);
                     }
                     break;
+                /* UNICORN-MOD: tcg-threading */
                 case NEON_3R_VRSHL:
                     if (u) {
                         gen_helper_neon_rshl_u64(tcg_ctx, tcg_ctx->cpu_V0, tcg_ctx->cpu_V1, tcg_ctx->cpu_V0);
@@ -5226,6 +5387,7 @@ static int disas_neon_data_insn(DisasContext *s, uint32_t insn)
         if (pairwise) {
             /* Pairwise.  */
             if (pass < 1) {
+                /* UNICORN-MOD: tcg-threading */
                 tmp = neon_load_reg(tcg_ctx, rn, 0);
                 tmp2 = neon_load_reg(tcg_ctx, rn, 1);
             } else {
@@ -5273,6 +5435,7 @@ static int disas_neon_data_insn(DisasContext *s, uint32_t insn)
             break;
         case NEON_3R_VQDMULH_VQRDMULH: /* Multiply high.  */
             if (!u) { /* VQDMULH */
+                /* UNICORN-MOD: tcg-threading */
                 switch (size) {
                 case 1:
                     gen_helper_neon_qdmulh_s16(tcg_ctx, tmp, tcg_ctx->cpu_env, tmp, tmp2);
@@ -5338,6 +5501,7 @@ static int disas_neon_data_insn(DisasContext *s, uint32_t insn)
             tcg_temp_free_ptr(tcg_ctx, fpstatus);
             break;
         }
+        /* UNICORN-MOD: tcg-threading */
         case NEON_3R_FLOAT_CMP:
         {
             TCGv_ptr fpstatus = get_fpstatus_ptr(tcg_ctx, 1);
@@ -5356,6 +5520,7 @@ static int disas_neon_data_insn(DisasContext *s, uint32_t insn)
         case NEON_3R_FLOAT_ACMP:
         {
             TCGv_ptr fpstatus = get_fpstatus_ptr(tcg_ctx, 1);
+            /* UNICORN-MOD: tcg-threading */
             if (size == 0) {
                 gen_helper_neon_acge_f32(tcg_ctx, tmp, tmp, tmp2, fpstatus);
             } else {
@@ -5373,8 +5538,10 @@ static int disas_neon_data_insn(DisasContext *s, uint32_t insn)
                 gen_helper_vfp_mins(tcg_ctx, tmp, tmp, tmp2, fpstatus);
             }
             tcg_temp_free_ptr(tcg_ctx, fpstatus);
+            /* UNICORN-MOD: tcg-threading */
             break;
         }
+        /* UNICORN-MOD: tcg-threading */
         case NEON_3R_FLOAT_MISC:
             if (u) {
                 /* VMAXNM/VMINNM */
@@ -5384,6 +5551,7 @@ static int disas_neon_data_insn(DisasContext *s, uint32_t insn)
                 } else {
                     gen_helper_vfp_minnums(tcg_ctx, tmp, tmp, tmp2, fpstatus);
                 }
+                /* UNICORN-MOD: tcg-threading */
                 tcg_temp_free_ptr(tcg_ctx, fpstatus);
             } else {
                 if (size == 0) {
@@ -5392,6 +5560,7 @@ static int disas_neon_data_insn(DisasContext *s, uint32_t insn)
                     gen_helper_rsqrts_f32(tcg_ctx, tmp, tmp, tmp2, tcg_ctx->cpu_env);
               }
             }
+            /* UNICORN-MOD: tcg-threading */
             break;
         case NEON_3R_VFM_VQRDMLSH:
         {
@@ -5460,6 +5629,7 @@ static int disas_neon_data_insn(DisasContext *s, uint32_t insn)
                     shift = shift - (1 << (size + 3));
                 }
 
+                /* UNICORN-MOD: tcg-threading */
                 switch (op) {
                 case 0:  /* VSHR */
                     /* Right shift comes here negative.  */
@@ -5488,6 +5658,7 @@ static int disas_neon_data_insn(DisasContext *s, uint32_t insn)
                      * in all sign bits.
                      */
                     if (!u) {
+                        /* UNICORN-MOD: tcg-threading */
                         tcg_gen_gvec_2i(tcg_ctx, rd_ofs, rm_ofs, vec_size, vec_size,
                                         MIN(shift, (8 << size) - 1),
                                         &ssra_op[size]);
@@ -5523,6 +5694,7 @@ static int disas_neon_data_insn(DisasContext *s, uint32_t insn)
                         /* Shifts larger than the element size are
                          * architecturally valid and results in zero.
                          */
+                        /* UNICORN-MOD: tcg-threading */
                         if (shift >= 8 << size) {
                             tcg_gen_gvec_dup8i(tcg_ctx, rd_ofs, vec_size, vec_size, 0);
                         } else {
@@ -5604,6 +5776,7 @@ static int disas_neon_data_insn(DisasContext *s, uint32_t insn)
                                                           tmp, tmp2);
                                 break;
                             default:
+                                /* UNICORN-MOD: tcg-threading */
                                 abort();
                             }
                             break;
@@ -5637,6 +5810,7 @@ static int disas_neon_data_insn(DisasContext *s, uint32_t insn)
                 if (size == 3) {
                     tmp64 = tcg_const_i64(tcg_ctx, shift);
                     neon_load_reg64(tcg_ctx, tcg_ctx->cpu_V0, rm);
+                    /* UNICORN-MOD: tcg-threading */
                     neon_load_reg64(tcg_ctx, tcg_ctx->cpu_V1, rm + 1);
                     for (pass = 0; pass < 2; pass++) {
                         TCGv_i64 in;
@@ -5690,6 +5864,7 @@ static int disas_neon_data_insn(DisasContext *s, uint32_t insn)
                         gen_neon_shift_narrow(tcg_ctx, size, tmp3, tmp2, q,
                                               input_unsigned);
                         tcg_gen_concat_i32_i64(tcg_ctx, tcg_ctx->cpu_V0, tmp, tmp3);
+                        /* UNICORN-MOD: tcg-threading */
                         tcg_temp_free_i32(tcg_ctx, tmp);
                         tcg_temp_free_i32(tcg_ctx, tmp3);
                         tmp = tcg_temp_new_i32(tcg_ctx);
@@ -5769,6 +5944,7 @@ static int disas_neon_data_insn(DisasContext *s, uint32_t insn)
                  * hence this 32-shift where the ARM ARM has 64-imm6.
                  */
                 shift = 32 - shift;
+                /* UNICORN-MOD: tcg-threading */
                 fpst = get_fpstatus_ptr(tcg_ctx, 1);
                 shiftv = tcg_const_i32(tcg_ctx, shift);
                 for (pass = 0; pass < (q ? 4 : 2); pass++) {
@@ -5847,6 +6023,7 @@ static int disas_neon_data_insn(DisasContext *s, uint32_t insn)
                     /* The immediate value has already been inverted,
                      * so BIC becomes AND.
                      */
+                    /* UNICORN-MOD: tcg-threading */
                     tcg_gen_gvec_andi(tcg_ctx, MO_32, reg_ofs, reg_ofs, imm,
                                       vec_size, vec_size);
                 } else {
@@ -5867,6 +6044,7 @@ static int disas_neon_data_insn(DisasContext *s, uint32_t insn)
                                 val |= 0xffull << (n * 8);
                             }
                         }
+                        /* UNICORN-MOD: tcg-threading */
                         tcg_gen_movi_i64(tcg_ctx, t64, val);
                         neon_store_reg64(tcg_ctx, t64, rd + pass);
                     }
@@ -5947,6 +6125,7 @@ static int disas_neon_data_insn(DisasContext *s, uint32_t insn)
                    always aligned so will never overlap with wide
                    destinations in problematic ways.  */
                 if (rd == rm && !src2_wide) {
+                    /* UNICORN-MOD: tcg-threading */
                     tmp = neon_load_reg(tcg_ctx, rm, 1);
                     neon_store_scratch(tcg_ctx, 2, tmp);
                 } else if (rd == rn && !src1_wide) {
@@ -6054,6 +6233,7 @@ static int disas_neon_data_insn(DisasContext *s, uint32_t insn)
                                 gen_helper_neon_narrow_high_u8(tcg_ctx, tmp, tcg_ctx->cpu_V0);
                                 break;
                             case 1:
+                                /* UNICORN-MOD: tcg-threading */
                                 gen_helper_neon_narrow_high_u16(tcg_ctx, tmp, tcg_ctx->cpu_V0);
                                 break;
                             case 2:
@@ -6152,6 +6332,7 @@ static int disas_neon_data_insn(DisasContext *s, uint32_t insn)
                             {
                                 TCGv_ptr fpstatus = get_fpstatus_ptr(tcg_ctx, 1);
                                 gen_helper_vfp_adds(tcg_ctx, tmp, tmp, tmp2, fpstatus);
+                                /* UNICORN-MOD: tcg-threading */
                                 tcg_temp_free_ptr(tcg_ctx, fpstatus);
                                 break;
                             }
@@ -6302,6 +6483,7 @@ static int disas_neon_data_insn(DisasContext *s, uint32_t insn)
                         neon_load_reg64(tcg_ctx, tcg_ctx->cpu_V0, rn + 1);
                         neon_load_reg64(tcg_ctx, tmp64, rm);
                     }
+                    /* UNICORN-MOD: tcg-threading */
                     tcg_gen_shri_i64(tcg_ctx, tcg_ctx->cpu_V0, tcg_ctx->cpu_V0, (imm & 7) * 8);
                     tcg_gen_shli_i64(tcg_ctx, tcg_ctx->cpu_V1, tmp64, 64 - ((imm & 7) * 8));
                     tcg_gen_or_i64(tcg_ctx, tcg_ctx->cpu_V0, tcg_ctx->cpu_V0, tcg_ctx->cpu_V1);
@@ -6351,6 +6533,7 @@ static int disas_neon_data_insn(DisasContext *s, uint32_t insn)
                         switch (size) {
                         case 0: tcg_gen_bswap32_i32(tcg_ctx, tmp, tmp); break;
                         case 1: gen_swap_half(tcg_ctx, tmp); break;
+                        /* UNICORN-MOD: tcg-threading */
                         case 2: /* no-op */ break;
                         default: abort();
                         }
@@ -6418,6 +6601,7 @@ static int disas_neon_data_insn(DisasContext *s, uint32_t insn)
                     }
                     tmp2 = NULL;
                     for (pass = 0; pass < 2; pass++) {
+                        /* UNICORN-MOD: tcg-threading */
                         neon_load_reg64(tcg_ctx, tcg_ctx->cpu_V0, rm + pass);
                         tmp = tcg_temp_new_i32(tcg_ctx);
                         gen_neon_narrow_op(tcg_ctx, op == NEON_2RM_VMOVN, q, size,
@@ -6608,6 +6792,7 @@ static int disas_neon_data_insn(DisasContext *s, uint32_t insn)
                         case NEON_2RM_VQABS:
                             switch (size) {
                             case 0:
+                                /* UNICORN-MOD: tcg-threading */
                                 gen_helper_neon_qabs_s8(tcg_ctx, tmp, tcg_ctx->cpu_env, tmp);
                                 break;
                             case 1:
@@ -6698,6 +6883,7 @@ static int disas_neon_data_insn(DisasContext *s, uint32_t insn)
                         }
                         case NEON_2RM_VCLE0_F:
                         {
+                            /* UNICORN-MOD: tcg-threading */
                             TCGv_ptr fpstatus = get_fpstatus_ptr(tcg_ctx, 1);
                             tmp2 = tcg_const_i32(tcg_ctx, 0);
                             gen_helper_neon_cge_f32(tcg_ctx, tmp, tmp2, tmp, fpstatus);
@@ -6754,6 +6940,7 @@ static int disas_neon_data_insn(DisasContext *s, uint32_t insn)
                                                       tcg_ctx->cpu_env);
                             gen_helper_rints(tcg_ctx, tmp, tmp, fpstatus);
                             gen_helper_set_neon_rmode(tcg_ctx, tcg_rmode, tcg_rmode,
+                                                      /* UNICORN-MOD: tcg-threading */
                                                       tcg_ctx->cpu_env);
                             tcg_temp_free_ptr(tcg_ctx, fpstatus);
                             tcg_temp_free_i32(tcg_ctx, tcg_rmode);
@@ -6786,6 +6973,7 @@ static int disas_neon_data_insn(DisasContext *s, uint32_t insn)
                                                       tcg_ctx->cpu_env);
 
                             if (is_signed) {
+                                /* UNICORN-MOD: tcg-threading */
                                 gen_helper_vfp_tosls(tcg_ctx, tmp, tmp,
                                                      tcg_shift, fpst);
                             } else {
@@ -6885,6 +7073,7 @@ static int disas_neon_data_insn(DisasContext *s, uint32_t insn)
                 tmp2 = neon_load_reg(tcg_ctx, rm, 0);
                 ptr1 = vfp_reg_ptr(tcg_ctx, true, rn);
                 tmp5 = tcg_const_i32(tcg_ctx, n);
+                /* UNICORN-MOD: tcg-threading */
                 gen_helper_neon_tbl(tcg_ctx, tmp2, tmp2, tmp, ptr1, tmp5);
                 tcg_temp_free_i32(tcg_ctx, tmp);
                 if (insn & (1 << 6)) {
@@ -6918,6 +7107,7 @@ static int disas_neon_data_insn(DisasContext *s, uint32_t insn)
                     size = MO_32;
                     element = (insn >> 19) & 1;
                 }
+                /* UNICORN-MOD: tcg-threading */
                 tcg_gen_gvec_dup_mem(tcg_ctx, size, neon_reg_offset(rd, 0),
                                      neon_element_offset(rm, element, size),
                                      q ? 16 : 8, q ? 16 : 8);
@@ -7009,6 +7199,7 @@ static int disas_neon_insn_3same_ext(DisasContext *s, uint32_t insn)
                            syn_simd_access_trap(1, 0xe, false), s->fp_excp_el);
         return 0;
     }
+    /* UNICORN-MOD: tcg-threading */
     if (!s->vfp_enabled) {
         return 1;
     }
@@ -7129,6 +7320,7 @@ static int disas_neon_insn_2reg_scalar_ext(DisasContext *s, uint32_t insn)
         off_rm = vfp_reg_offset(0, rm);
     }
     if (s->fp_excp_el) {
+        /* UNICORN-MOD: tcg-threading */
         gen_exception_insn(s, s->pc_curr, EXCP_UDEF,
                            syn_simd_access_trap(1, 0xe, false), s->fp_excp_el);
         return 0;
@@ -7260,6 +7452,7 @@ static int disas_coproc_insn(DisasContext *s, uint32_t insn)
             }
 
             gen_set_condexec(s);
+            /* UNICORN-MOD: tcg-threading */
             gen_set_pc_im(s, s->pc_curr);
             tmpptr = tcg_const_ptr(tcg_ctx, ri);
             tcg_syn = tcg_const_i32(tcg_ctx, syndrome);
@@ -7392,6 +7585,7 @@ static int disas_coproc_insn(DisasContext *s, uint32_t insn)
              * A write to any coprocessor register that ends a TB
              * must rebuild the hflags for the next TB.
              */
+            /* UNICORN-MOD: tcg-threading */
             TCGv_i32 tcg_el = tcg_const_i32(tcg_ctx, s->current_el);
             if (arm_dc_feature(s, ARM_FEATURE_M)) {
                 gen_helper_rebuild_hflags_m32(tcg_ctx, tcg_ctx->cpu_env, tcg_el);
@@ -7420,6 +7614,7 @@ static int disas_coproc_insn(DisasContext *s, uint32_t insn)
     /* Unknown register; this might be a guest error or a QEMU
      * unimplemented feature.
      */
+    /* UNICORN-MOD: tcg-threading */
     if (is64) {
         qemu_log_mask(LOG_UNIMP, "%s access to unsupported AArch32 "
                       "64 bit system register cp:%d opc1: %d crm:%d "
@@ -7471,6 +7666,7 @@ static void gen_addq(DisasContext *s, TCGv_i64 val, int rlow, int rhigh)
 }
 
 /* Set N and Z flags from hi|lo.  */
+/* UNICORN-MOD: tcg-threading */
 static void gen_logicq_cc(TCGContext *tcg_ctx, TCGv_i32 lo, TCGv_i32 hi)
 {
     tcg_gen_mov_i32(tcg_ctx, tcg_ctx->cpu_NF, hi);
@@ -7552,6 +7748,7 @@ static void gen_store_exclusive(DisasContext *s, int rd, int rt, int rt2,
        } else {
          {Rd} = 1;
        } */
+    /* UNICORN-MOD: tcg-threading */
     fail_label = gen_new_label(tcg_ctx);
     done_label = gen_new_label(tcg_ctx);
     extaddr = tcg_temp_new_i64(tcg_ctx);
@@ -7656,6 +7853,7 @@ static void gen_srs(DisasContext *s,
     case ARM_CPU_MODE_ABT:
     case ARM_CPU_MODE_UND:
     case ARM_CPU_MODE_SYS:
+        /* UNICORN-MOD: tcg-threading */
         break;
     case ARM_CPU_MODE_HYP:
         if (s->current_el == 1 || !arm_dc_feature(s, ARM_FEATURE_EL2)) {
@@ -7789,6 +7987,7 @@ static int t32_expandimm_rot(DisasContext *s, int x)
 /* Return the unrotated immediate from T32ExpandImm.  */
 static int t32_expandimm_imm(DisasContext *s, int x)
 {
+    /* UNICORN-MOD: tcg-threading */
     uint32_t imm = extract32(x, 0, 8);
 
     switch (extract32(x, 8, 4)) {
@@ -7845,21 +8044,25 @@ static int t16_pop_list(DisasContext *s, int x)
 #include "decode-t16.inc.c"
 
 /* Helpers to swap operands for reverse-subtract.  */
+/* UNICORN-MOD: tcg-threading */
 static void gen_rsb(TCGContext *tcg_ctx, TCGv_i32 dst, TCGv_i32 a, TCGv_i32 b)
 {
     tcg_gen_sub_i32(tcg_ctx, dst, b, a);
 }
 
+/* UNICORN-MOD: tcg-threading */
 static void gen_rsb_CC(TCGContext *tcg_ctx, TCGv_i32 dst, TCGv_i32 a, TCGv_i32 b)
 {
     gen_sub_CC(tcg_ctx, dst, b, a);
 }
 
+/* UNICORN-MOD: tcg-threading */
 static void gen_rsc(TCGContext *tcg_ctx, TCGv_i32 dest, TCGv_i32 a, TCGv_i32 b)
 {
     gen_sub_carry(tcg_ctx, dest, b, a);
 }
 
+/* UNICORN-MOD: tcg-threading */
 static void gen_rsc_CC(TCGContext *tcg_ctx, TCGv_i32 dest, TCGv_i32 a, TCGv_i32 b)
 {
     gen_sbc_CC(tcg_ctx, dest, b, a);
@@ -7917,12 +8120,14 @@ static bool store_reg_kind(DisasContext *s, int rd,
  * one immediate shifted register source, and a destination.
  */
 static bool op_s_rrr_shi(DisasContext *s, arg_s_rrr_shi *a,
+                         /* UNICORN-MOD: tcg-threading */
                          void (*gen)(TCGContext *, TCGv_i32, TCGv_i32, TCGv_i32),
                          int logic_cc, StoreRegKind kind)
 {
     TCGContext *tcg_ctx = s->uc->tcg_ctx;
     TCGv_i32 tmp1, tmp2;
 
+    /* UNICORN-MOD: tcg-threading */
     tmp2 = load_reg(s, a->rm);
     gen_arm_shift_im(tcg_ctx, tmp2, a->shty, a->shim, logic_cc);
     tmp1 = load_reg(s, a->rn);
@@ -7937,6 +8142,7 @@ static bool op_s_rrr_shi(DisasContext *s, arg_s_rrr_shi *a,
 }
 
 static bool op_s_rxr_shi(DisasContext *s, arg_s_rrr_shi *a,
+                         /* UNICORN-MOD: tcg-threading */
                          void (*gen)(TCGContext *, TCGv_i32, TCGv_i32),
                          int logic_cc, StoreRegKind kind)
 {
@@ -7960,6 +8166,7 @@ static bool op_s_rxr_shi(DisasContext *s, arg_s_rrr_shi *a,
  * one register shifted register source, and a destination.
  */
 static bool op_s_rrr_shr(DisasContext *s, arg_s_rrr_shr *a,
+                         /* UNICORN-MOD: tcg-threading */
                          void (*gen)(TCGContext *, TCGv_i32, TCGv_i32, TCGv_i32),
                          int logic_cc, StoreRegKind kind)
 {
@@ -7981,6 +8188,7 @@ static bool op_s_rrr_shr(DisasContext *s, arg_s_rrr_shr *a,
 }
 
 static bool op_s_rxr_shr(DisasContext *s, arg_s_rrr_shr *a,
+                         /* UNICORN-MOD: tcg-threading */
                          void (*gen)(TCGContext *, TCGv_i32, TCGv_i32),
                          int logic_cc, StoreRegKind kind)
 {
@@ -8009,6 +8217,7 @@ static bool op_s_rxr_shr(DisasContext *s, arg_s_rrr_shr *a,
  * of the immediate.
  */
 static bool op_s_rri_rot(DisasContext *s, arg_s_rri_rot *a,
+                         /* UNICORN-MOD: tcg-threading */
                          void (*gen)(TCGContext *, TCGv_i32, TCGv_i32, TCGv_i32),
                          int logic_cc, StoreRegKind kind)
 {
@@ -8033,6 +8242,7 @@ static bool op_s_rri_rot(DisasContext *s, arg_s_rri_rot *a,
 }
 
 static bool op_s_rxi_rot(DisasContext *s, arg_s_rri_rot *a,
+                         /* UNICORN-MOD: tcg-threading */
                          void (*gen)(TCGContext *, TCGv_i32, TCGv_i32),
                          int logic_cc, StoreRegKind kind)
 {
@@ -8069,6 +8279,7 @@ static bool op_s_rxi_rot(DisasContext *s, arg_s_rri_rot *a,
     static bool trans_##NAME##_rri(DisasContext *s, arg_s_rri_rot *a)   \
     { StoreRegKind k = K(s, a->rd, a->rn, &a->s); return op_s_rri_rot(s, a, OP, L, k); }
 
+/* UNICORN-MOD: tcg-threading */
 #define DO_ANY2(NAME, OP, L, K)                                         \
     static bool trans_##NAME##_rxri(DisasContext *s, arg_s_rrr_shi *a)  \
     { StoreRegKind k = (K); return op_s_rxr_shi(s, a, OP, L, k); }      \
@@ -8217,6 +8428,7 @@ static bool trans_MOVT(DisasContext *s, arg_MOVW *a)
     }
 
     tmp = load_reg(s, a->rd);
+    /* UNICORN-MOD: tcg-threading */
     tcg_gen_ext16u_i32(tcg_ctx, tmp, tmp);
     tcg_gen_ori_i32(tcg_ctx, tmp, tmp, a->imm << 16);
     store_reg(s, a->rd, tmp);
@@ -8299,6 +8511,7 @@ static bool op_mlal(DisasContext *s, arg_s_rrrr *a, bool uns, bool add)
     if (a->s) {
         gen_logicq_cc(tcg_ctx, t0, t1);
     }
+    /* UNICORN-MOD: tcg-threading */
     store_reg(s, a->ra, t0);
     store_reg(s, a->rd, t1);
     return true;
@@ -8340,6 +8553,7 @@ static bool trans_UMAAL(DisasContext *s, arg_UMAAL *a)
     tcg_gen_mulu2_i32(tcg_ctx, t0, t1, t0, t1);
     zero = tcg_const_i32(tcg_ctx, 0);
     t2 = load_reg(s, a->ra);
+    /* UNICORN-MOD: tcg-threading */
     tcg_gen_add2_i32(tcg_ctx, t0, t1, t0, t1, t2, zero);
     tcg_temp_free_i32(tcg_ctx, t2);
     t2 = load_reg(s, a->rd);
@@ -8617,6 +8831,7 @@ static bool trans_##NAME(DisasContext *s, arg_rrr *a)  \
 DO_CRC32(CRC32B, false, MO_8)
 DO_CRC32(CRC32H, false, MO_16)
 DO_CRC32(CRC32W, false, MO_32)
+/* UNICORN-MOD: tcg-threading */
 DO_CRC32(CRC32CB, true, MO_8)
 DO_CRC32(CRC32CH, true, MO_16)
 DO_CRC32(CRC32CW, true, MO_32)
@@ -8636,6 +8851,7 @@ static bool trans_MRS_bank(DisasContext *s, arg_MRS_bank *a)
     return true;
 }
 
+/* UNICORN-MOD: tcg-threading */
 static bool trans_MSR_bank(DisasContext *s, arg_MSR_bank *a)
 {
     if (arm_dc_feature(s, ARM_FEATURE_M)) {
@@ -8659,6 +8875,7 @@ static bool trans_MRS_reg(DisasContext *s, arg_MRS_reg *a)
             return true;
         }
         tmp = load_cpu_field(tcg_ctx, spsr);
+    /* UNICORN-MOD: tcg-threading */
     } else {
         tmp = tcg_temp_new_i32(tcg_ctx);
         gen_helper_cpsr_read(tcg_ctx, tmp, tcg_ctx->cpu_env);
@@ -8802,6 +9019,7 @@ static bool trans_ERET(DisasContext *s, arg_ERET *a)
     }
     if (s->current_el == 2) {
         /* ERET from Hyp uses ELR_Hyp, not LR */
+        /* UNICORN-MOD: tcg-threading */
         tmp = load_cpu_field(tcg_ctx, elr_el[2]);
     } else {
         tmp = load_reg(s, 14);
@@ -8821,6 +9039,7 @@ static bool trans_BKPT(DisasContext *s, arg_BKPT *a)
     if (!ENABLE_ARCH_5) {
         return false;
     }
+    /* UNICORN-MOD: tcg-threading */
     if (arm_dc_feature(s, ARM_FEATURE_M) && false && // semihosting_enabled() &&
         !IS_USER(s) &&
         (a->imm == 0xab)) {
@@ -8910,6 +9129,7 @@ static bool trans_TT(DisasContext *s, arg_TT *a)
     gen_helper_v7m_tt(tcg_ctx, tmp, tcg_ctx->cpu_env, addr, tmp);
     tcg_temp_free_i32(tcg_ctx, addr);
     store_reg(s, a->rd, tmp);
+    /* UNICORN-MOD: tcg-threading */
     return true;
 }
 
@@ -8939,6 +9159,7 @@ static TCGv_i32 op_addr_rr_pre(DisasContext *s, arg_ldst_rr *a)
     TCGv_i32 addr = load_reg(s, a->rn);
 
     if (s->v8m_stackcheck && a->rn == 13 && a->w) {
+        /* UNICORN-MOD: tcg-threading */
         gen_helper_v8m_stackcheck(tcg_ctx, tcg_ctx->cpu_env, addr);
     }
 
@@ -9096,6 +9317,7 @@ static TCGv_i32 op_addr_ri_pre(DisasContext *s, arg_ldst_ri *a)
          * below the limit and ends up above it; we chose to do so.
          */
         if (!a->u) {
+            /* UNICORN-MOD: tcg-threading */
             TCGv_i32 newsp = tcg_temp_new_i32(tcg_ctx);
             tcg_gen_addi_i32(tcg_ctx, newsp, tcg_ctx->cpu_R[13], ofs);
             gen_helper_v8m_stackcheck(tcg_ctx, tcg_ctx->cpu_env, newsp);
@@ -9189,6 +9411,7 @@ static bool op_ldrd_ri(DisasContext *s, arg_ldst_ri *a, int rt2)
     return true;
 }
 
+/* UNICORN-MOD: tcg-threading */
 static bool trans_LDRD_ri_a32(DisasContext *s, arg_ldst_ri *a)
 {
     if (!ENABLE_ARCH_5TE || (a->rt & 1)) {
@@ -9347,6 +9570,7 @@ static bool op_strex(DisasContext *s, arg_STREX *a, MemOp mop, bool rel)
 static bool trans_STREX(DisasContext *s, arg_STREX *a)
 {
     if (!ENABLE_ARCH_6) {
+        /* UNICORN-MOD: tcg-threading */
         return false;
     }
     return op_strex(s, a, MO_32, false);
@@ -9533,6 +9757,7 @@ static bool trans_LDREXD_t32(DisasContext *s, arg_LDREX *a)
 static bool trans_LDREXB(DisasContext *s, arg_LDREX *a)
 {
     if (s->thumb ? !ENABLE_ARCH_7 : !ENABLE_ARCH_6K) {
+        /* UNICORN-MOD: tcg-threading */
         return false;
     }
     return op_ldrex(s, a, MO_8, false);
@@ -9676,6 +9901,7 @@ static bool op_bfx(DisasContext *s, arg_UBFX *a, bool u)
 
     tmp = load_reg(s, a->rn);
     if (u) {
+        /* UNICORN-MOD: tcg-threading */
         tcg_gen_extract_i32(tcg_ctx, tmp, tmp, shift, width);
     } else {
         tcg_gen_sextract_i32(tcg_ctx, tmp, tmp, shift, width);
@@ -9702,6 +9928,7 @@ static bool trans_BFCI(DisasContext *s, arg_BFCI *a)
     int width;
 
     if (!ENABLE_ARCH_6T2) {
+        /* UNICORN-MOD: tcg-threading */
         return false;
     }
     if (msb < lsb) {
@@ -9738,6 +9965,7 @@ static bool trans_UDF(DisasContext *s, arg_UDF *a)
  */
 
 static bool op_par_addsub(DisasContext *s, arg_rrr *a,
+                          /* UNICORN-MOD: tcg-threading */
                           void (*gen)(TCGContext *, TCGv_i32, TCGv_i32, TCGv_i32))
 {
     TCGContext *tcg_ctx = s->uc->tcg_ctx;
@@ -9760,6 +9988,7 @@ static bool op_par_addsub(DisasContext *s, arg_rrr *a,
 }
 
 static bool op_par_addsub_ge(DisasContext *s, arg_rrr *a,
+                             /* UNICORN-MOD: tcg-threading */
                              void (*gen)(TCGContext *, TCGv_i32, TCGv_i32,
                                          TCGv_i32, TCGv_ptr))
 {
@@ -9879,6 +10108,7 @@ static bool trans_PKH(DisasContext *s, arg_PKH *a)
 }
 
 static bool op_sat(DisasContext *s, arg_sat *a,
+                   /* UNICORN-MOD: tcg-threading */
                    void (*gen)(TCGContext *, TCGv_i32, TCGv_env, TCGv_i32, TCGv_i32))
 {
     TCGContext *tcg_ctx = s->uc->tcg_ctx;
@@ -9891,6 +10121,7 @@ static bool op_sat(DisasContext *s, arg_sat *a,
 
     tmp = load_reg(s, a->rn);
     if (a->sh) {
+        /* UNICORN-MOD: tcg-threading */
         tcg_gen_sari_i32(tcg_ctx, tmp, tmp, shift ? shift : 31);
     } else {
         tcg_gen_shli_i32(tcg_ctx, tmp, tmp, shift);
@@ -9931,7 +10162,9 @@ static bool trans_USAT16(DisasContext *s, arg_sat *a)
 }
 
 static bool op_xta(DisasContext *s, arg_rrr_rot *a,
+                   /* UNICORN-MOD: tcg-threading */
                    void (*gen_extract)(TCGContext *, TCGv_i32, TCGv_i32),
+                   /* UNICORN-MOD: tcg-threading */
                    void (*gen_add)(TCGContext *, TCGv_i32, TCGv_i32, TCGv_i32))
 {
     TCGContext *tcg_ctx = s->uc->tcg_ctx;
@@ -10017,6 +10250,7 @@ static bool trans_SEL(DisasContext *s, arg_rrr *a)
 }
 
 static bool op_rr(DisasContext *s, arg_rr *a,
+                  /* UNICORN-MOD: tcg-threading */
                   void (*gen)(TCGContext *, TCGv_i32, TCGv_i32))
 {
     TCGContext *tcg_ctx = s->uc->tcg_ctx;
@@ -10161,6 +10395,7 @@ static bool op_smlald(DisasContext *s, arg_rrrr *a, bool m_swap, bool sub)
 
 static bool trans_SMLALD(DisasContext *s, arg_rrrr *a)
 {
+    /* UNICORN-MOD: tcg-threading */
     return op_smlald(s, a, false, false);
 }
 
@@ -10192,6 +10427,7 @@ static bool op_smmla(DisasContext *s, arg_rrrr *a, bool round, bool sub)
 
     t1 = load_reg(s, a->rn);
     t2 = load_reg(s, a->rm);
+    /* UNICORN-MOD: tcg-threading */
     tcg_gen_muls2_i32(tcg_ctx, t2, t1, t1, t2);
 
     if (a->ra != 15) {
@@ -10323,6 +10559,7 @@ static void op_addr_block_post(DisasContext *s, arg_ldst_block *a,
     if (a->w) {
         /* write back */
         if (!a->b) {
+            /* UNICORN-MOD: tcg-threading */
             if (a->i) {
                 /* post increment */
                 tcg_gen_addi_i32(tcg_ctx, addr, addr, 4);
@@ -10561,6 +10798,7 @@ static bool trans_B_cond_thumb(DisasContext *s, arg_ci *a)
 
 static bool trans_BL(DisasContext *s, arg_i *a)
 {
+    /* UNICORN-MOD: tcg-threading */
     TCGContext *tcg_ctx = s->uc->tcg_ctx;
     tcg_gen_movi_i32(tcg_ctx, tcg_ctx->cpu_R[14], s->base.pc_next | s->thumb);
     gen_jmp(s, read_pc(s) + a->imm);
@@ -10674,6 +10912,7 @@ static bool trans_SVC(DisasContext *s, arg_SVC *a)
 {
     const uint32_t semihost_imm = s->thumb ? 0xab : 0x123456;
 
+    /* UNICORN-MOD: dependency-removal, semihosting disabled */
     if (!arm_dc_feature(s, ARM_FEATURE_M) && false && // semihosting_enabled() &&
         !IS_USER(s) &&
         (a->imm == semihost_imm)) {
@@ -10794,6 +11033,7 @@ static bool trans_CPS_v7m(DisasContext *s, arg_CPS_v7m *a)
     /* FAULTMASK */
     if (a->F) {
         addr = tcg_const_i32(tcg_ctx, 19);
+        /* UNICORN-MOD: tcg-threading */
         gen_helper_v7m_msr(tcg_ctx, tcg_ctx->cpu_env, addr, tmp);
         tcg_temp_free_i32(tcg_ctx, addr);
     }
@@ -11030,6 +11270,7 @@ static void disas_arm_insn(DisasContext *s, unsigned int insn)
 
     switch ((insn >> 24) & 0xf) {
     case 0xc:
+    /* UNICORN-MOD: tcg-threading */
     case 0xd:
     case 0xe:
         if (((insn >> 8) & 0xe) == 10) {
@@ -11120,6 +11361,7 @@ static void disas_thumb2_insn(DisasContext *s, uint32_t insn)
             }
         }
         if (!found) {
+            /* UNICORN-MOD: tcg-threading */
             goto illegal_op;
         }
     } else if ((insn & 0xf800e800) != 0xf000e800)  {
@@ -11241,6 +11483,7 @@ static void arm_tr_init_disas_context(DisasContextBase *dcbase, CPUState *cs)
     dc->isar = &cpu->isar;
     dc->condjmp = 0;
 
+    /* UNICORN-MOD: tcg-threading */
     dc->aarch64 = 0;
     /* If we are coming from secure EL0 in a system with a 32-bit EL3, then
      * there is no secure EL1, so we route exceptions to EL3.
@@ -11336,6 +11579,7 @@ static void arm_tr_init_disas_context(DisasContextBase *dcbase, CPUState *cs)
 static void arm_tr_tb_start(DisasContextBase *dcbase, CPUState *cpu)
 {
     DisasContext *dc = container_of(dcbase, DisasContext, base);
+    /* UNICORN-MOD: tcg-threading */
     TCGContext *tcg_ctx = dc->uc->tcg_ctx;
 
     /* A note on handling of the condexec (IT) bits:
@@ -11669,6 +11913,7 @@ static void arm_tr_tb_stop(DisasContextBase *dcbase, CPUState *cpu)
         gen_bx_excret_final_code(dc);
     } else if (unlikely(is_singlestepping(dc))) {
         /* Unconditional and "condition passed" instruction codepath. */
+        /* UNICORN-MOD: tcg-threading */
         switch (dc->base.is_jmp) {
         case DISAS_SWI:
             gen_ss_advance(dc);
@@ -11769,6 +12014,7 @@ static void arm_tr_tb_stop(DisasContextBase *dcbase, CPUState *cpu)
     }
 }
 
+/* UNICORN-MOD: tcg-threading */
 static void arm_pc_sync(DisasContextBase *db, CPUState *state)
 {
     DisasContext *dc = container_of(db, DisasContext, base);
@@ -11782,6 +12028,7 @@ static const TranslatorOps arm_translator_ops = {
     .breakpoint_check   = arm_tr_breakpoint_check,
     .translate_insn     = arm_tr_translate_insn,
     .tb_stop            = arm_tr_tb_stop,
+    /* UNICORN-MOD: tcg-threading */
     .pc_sync            = arm_pc_sync
 };
 

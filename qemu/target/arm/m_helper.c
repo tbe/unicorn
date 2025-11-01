@@ -8,6 +8,7 @@
 
 #include "qemu/osdep.h"
 #include "qemu/units.h"
+/* UNICORN-MOD: dependency-removal, removed unused QEMU subsystem includes */
 #include "cpu.h"
 #include "internals.h"
 #include "exec/helper-proto.h"
@@ -81,13 +82,16 @@ static bool v7m_stack_write(ARMCPU *cpu, uint32_t addr, uint32_t value,
 {
     CPUState *cs = CPU(cpu);
     CPUARMState *env = &cpu->env;
+    /* UNICORN-MOD: zero-init */
     MemTxAttrs attrs = { 0 };
     MemTxResult txres;
     target_ulong page_size;
     hwaddr physaddr;
     int prot;
+    /* UNICORN-MOD: zero-init */
     ARMMMUFaultInfo fi = { 0 };
     bool secure = mmu_idx & ARM_MMU_IDX_M_S;
+    /* UNICORN-MOD: device-removal, exc/exc_secure unused without NVIC */
     // int exc;
     // bool exc_secure;
 
@@ -125,6 +129,7 @@ static bool v7m_stack_write(ARMCPU *cpu, uint32_t addr, uint32_t value,
         }
         goto pend_fault;
     }
+/* UNICORN-MOD: context-passing, add uc_struct param */
 #ifdef UNICORN_ARCH_POSTFIX
     glue(address_space_stl_le, UNICORN_ARCH_POSTFIX)(cs->uc, arm_addressspace(cs, attrs), physaddr, value,
 #else
@@ -159,6 +164,7 @@ pend_fault:
      * by the caller passing STACK_IGNFAULTS). Even in this case we will
      * still update the fault status registers.
      */
+    /* UNICORN-MOD: device-removal, NVIC calls commented */
     switch (mode) {
     case STACK_NORMAL:
         // armv7m_nvic_set_pending_derived(env->nvic, exc, exc_secure);
@@ -172,6 +178,7 @@ pend_fault:
     return false;
 }
 
+/* UNICORN-STUB: device-removal, NVIC not emulated */
 void armv7m_nvic_set_pending(void *opaque, int irq, bool secure)
 {
 }
@@ -212,6 +219,7 @@ static bool v7m_stack_read(ARMCPU *cpu, uint32_t *dest, uint32_t addr,
         goto pend_fault;
     }
 
+/* UNICORN-MOD: context-passing, add uc_struct param */
 #ifdef UNICORN_ARCH_POSTFIX
     value = glue(address_space_ldl, UNICORN_ARCH_POSTFIX)(cs->uc, arm_addressspace(cs, attrs), physaddr,
 #else
@@ -261,6 +269,7 @@ void HELPER(v7m_preserve_fp_state)(CPUARMState *env)
     bool take_exception;
 
     /* Check the background context had access to the FPU */
+    /* UNICORN-MOD: device-removal, NVIC calls commented */
     if (!v7m_cpacr_pass(env, is_secure, is_priv)) {
         // armv7m_nvic_set_pending_lazyfp(env->nvic, ARMV7M_EXCP_USAGE, is_secure);
         env->v7m.cfsr[is_secure] |= R_V7M_CFSR_NOCP_MASK;
@@ -304,6 +313,7 @@ void HELPER(v7m_preserve_fp_state)(CPUARMState *env)
      * If it's just pending and won't be taken until the current
      * handler exits, then we do update LSPACT and the FP regs.
      */
+    /* UNICORN-MOD: device-removal, NVIC always returns false */
     // take_exception = !stacked_ok &&
     //     armv7m_nvic_can_take_pending_exception(env->nvic);
     /* consider armv7m_nvic_can_take_pending_exception() always return false.
@@ -565,6 +575,7 @@ static uint32_t *get_v7m_sp_ptr(CPUARMState *env, bool secure, bool threadmode,
     }
 }
 
+/* UNICORN-BEGIN: device-removal, arm_v7m_load_vector disabled (NVIC-dependent) */
 #if 0
 static bool arm_v7m_load_vector(ARMCPU *cpu, int exc, bool targets_secure,
                                 uint32_t *pvec)
@@ -644,6 +655,7 @@ load_fail:
     return false;
 }
 #endif
+/* UNICORN-END */
 
 static uint32_t v7m_integrity_sig(CPUARMState *env, uint32_t lr)
 {
@@ -661,6 +673,7 @@ static uint32_t v7m_integrity_sig(CPUARMState *env, uint32_t lr)
     return sig;
 }
 
+/* UNICORN-BEGIN: device-removal, v7m_push_callee_stack disabled (NVIC-dependent) */
 #if 0
 static bool v7m_push_callee_stack(ARMCPU *cpu, uint32_t lr, bool dotailchain,
                                   bool ignore_faults)
@@ -739,11 +752,14 @@ static bool v7m_push_callee_stack(ARMCPU *cpu, uint32_t lr, bool dotailchain,
     return !stacked_ok;
 }
 #endif
+/* UNICORN-END */
 
+/* UNICORN-MOD: device-removal, v7m_exception_taken stubbed */
 static void v7m_exception_taken(ARMCPU *cpu, uint32_t lr, bool dotailchain,
                                 bool ignore_stackfaults)
 {
     return; // FIXME
+/* UNICORN-BEGIN: device-removal, v7m_exception_taken body disabled (NVIC-dependent) */
 #if 0
     /*
      * Do the "take the exception" parts of exception entry,
@@ -880,16 +896,20 @@ static void v7m_exception_taken(ARMCPU *cpu, uint32_t lr, bool dotailchain,
     env->thumb = addr & 1;
     arm_rebuild_hflags(env);
 #endif
+/* UNICORN-END */
 }
 
+/* UNICORN-STUB: device-removal, NVIC not emulated */
 bool armv7m_nvic_neg_prio_requested(void *opaque, bool secure)
 {
     return false;
 }
 
+/* UNICORN-MOD: device-removal, v7m_update_fpccr stubbed */
 static void v7m_update_fpccr(CPUARMState *env, uint32_t frameptr,
                              bool apply_splim)
 {
+/* UNICORN-BEGIN: device-removal, v7m_update_fpccr body disabled (NVIC-dependent) */
 #if 0
     /*
      * Like the pseudocode UpdateFPCCR: save state in FPCAR and FPCCR
@@ -952,6 +972,7 @@ static void v7m_update_fpccr(CPUARMState *env, uint32_t frameptr,
         *fpccr_s = FIELD_DP32(*fpccr_s, V7M_FPCCR, SFRDY, sfrdy);
     }
 #endif
+/* UNICORN-END */
 }
 
 void HELPER(v7m_vlstm)(CPUARMState *env, uint32_t fptr)
@@ -1247,6 +1268,7 @@ static bool v7m_push_stack(ARMCPU *cpu)
     return !stacked_ok;
 }
 
+/* UNICORN-MOD: device-removal, do_v7m_exception_exit stubbed */
 static void do_v7m_exception_exit(ARMCPU *cpu)
 {
     return; // FIXME
@@ -1334,6 +1356,7 @@ static void do_v7m_exception_exit(ARMCPU *cpu)
          * value of the ES bit in the exception return value indicates
          * which security state's faultmask to clear. (v8M ARM ARM R_KBNF.)
          */
+        /* UNICORN-MOD: device-removal, NVIC call commented */
         if (arm_feature(env, ARM_FEATURE_M_SECURITY)) {
             // if (armv7m_nvic_raw_execution_priority(env->nvic) >= 0) {
             //     env->v7m.faultmask[exc_secure] = 0;
@@ -1343,6 +1366,7 @@ static void do_v7m_exception_exit(ARMCPU *cpu)
         }
     }
 
+/* UNICORN-BEGIN: device-removal, NVIC complete_irq disabled */
 #if 0
     switch (armv7m_nvic_complete_irq(env->nvic, env->v7m.exception,
                                      exc_secure)) {
@@ -1365,6 +1389,7 @@ static void do_v7m_exception_exit(ARMCPU *cpu)
         g_assert_not_reached();
     }
 #endif
+/* UNICORN-END */
 
     return_to_handler = !(excret & R_V7M_EXCRET_MODE_MASK);
     return_to_sp_process = excret & R_V7M_EXCRET_SPSEL_MASK;
@@ -1474,6 +1499,7 @@ static void do_v7m_exception_exit(ARMCPU *cpu)
      * returning to -- none of the state we would unstack or set based on
      * the EXCRET value affects it.
      */
+    /* UNICORN-MOD: device-removal, NVIC tailchaining disabled */
     // if (armv7m_nvic_can_take_pending_exception(env->nvic)) {
     //     qemu_log_mask(CPU_LOG_INT, "...tailchaining to pending exception\n");
     //     v7m_exception_taken(cpu, excret, true, false);
@@ -1697,6 +1723,7 @@ static void do_v7m_exception_exit(ARMCPU *cpu)
                 }
             }
         }
+        /* UNICORN-MOD: api-change, FIELD_DP32 macro signature change */
         FIELD_DP32(env->v7m.control[M_REG_S],
                 V7M_CONTROL, FPCA, !ftype, env->v7m.control[M_REG_S]);
 
@@ -1731,6 +1758,7 @@ static void do_v7m_exception_exit(ARMCPU *cpu)
     if (env->v7m.secure) {
         bool sfpa = xpsr & XPSR_SFPA;
 
+        /* UNICORN-MOD: api-change, FIELD_DP32 macro signature change */
         FIELD_DP32(env->v7m.control[M_REG_S],
                 V7M_CONTROL, SFPA, sfpa, env->v7m.control[M_REG_S]);
     }
@@ -1884,6 +1912,7 @@ static bool v7m_read_half_insn(ARMCPU *cpu, ARMMMUIdx mmu_idx,
         qemu_log_mask(CPU_LOG_INT, "...really MemManage with CFSR.IACCVIOL\n");
         return false;
     }
+/* UNICORN-MOD: context-passing, add uc_struct param */
 #ifdef UNICORN_ARCH_POSTFIX
     *insn = glue(address_space_lduw_le, UNICORN_ARCH_POSTFIX)(cs->uc, arm_addressspace(cs, attrs), physaddr,
 #else
@@ -1978,6 +2007,7 @@ void arm_v7m_cpu_do_interrupt(CPUState *cs)
     uint32_t lr;
     bool ignore_stackfaults;
 
+    /* UNICORN-MOD: dependency-removal, logging removed */
     // arm_log_exception(cs->exception_index);
 
     /*
@@ -2120,6 +2150,7 @@ void arm_v7m_cpu_do_interrupt(CPUState *cs)
         qemu_log_mask(CPU_LOG_INT,
                       "...handling as semihosting call 0x%x\n",
                       env->regs[0]);
+        /* UNICORN-MOD: dependency-removal, semihosting not supported */
         // env->regs[0] = do_arm_semihosting(env); FIXME
         env->regs[15] += env->thumb ? 2 : 4;
         return;
@@ -2195,6 +2226,7 @@ uint32_t HELPER(v7m_mrs)(CPUARMState *env, uint32_t reg)
     unsigned el = arm_current_el(env);
 
     /* First handle registers which unprivileged can read */
+    /* UNICORN-MOD: code-style, switch to if-else for better code generation */
     if (reg >=0 && reg <= 7) {
         return v7m_mrs_xpsr(env, reg, el);
     } else {
@@ -2429,6 +2461,7 @@ void HELPER(v7m_msr)(CPUARMState *env, uint32_t maskreg, uint32_t val)
         }
     }
 
+    /* UNICORN-MOD: code-style, switch to if-else for better code generation */
     if (reg >= 0 && reg <= 7) {
         v7m_msr_xpsr(env, mask, reg, val);
     } else {

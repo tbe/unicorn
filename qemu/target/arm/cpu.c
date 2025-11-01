@@ -18,12 +18,14 @@
  * <http://www.gnu.org/licenses/gpl-2.0.html>
  */
 
+/* UNICORN-MOD: dependency-removal, removed unused QEMU subsystem includes */
 #include "cpu.h"
 #include "internals.h"
 #include "exec/exec-all.h"
 #include "sysemu/sysemu.h"
 #include "fpu/softfloat.h"
 
+/* UNICORN-MOD: context-passing, add Unicorn header */
 #include <uc_priv.h>
 
 static void arm_cpu_set_pc(CPUState *cs, vaddr value)
@@ -67,6 +69,7 @@ static bool arm_cpu_has_work(CPUState *cs)
          | CPU_INTERRUPT_EXITTB);
 }
 
+/* UNICORN-MOD: api-change, made static (was exported in QEMU) */
 static void arm_register_pre_el_change_hook(ARMCPU *cpu, ARMELChangeHookFn *hook,
                                  void *opaque)
 {
@@ -78,6 +81,7 @@ static void arm_register_pre_el_change_hook(ARMCPU *cpu, ARMELChangeHookFn *hook
     QLIST_INSERT_HEAD(&cpu->pre_el_change_hooks, entry, node);
 }
 
+/* UNICORN-MOD: api-change, made static (was exported in QEMU) */
 static void arm_register_el_change_hook(ARMCPU *cpu, ARMELChangeHookFn *hook,
                                  void *opaque)
 {
@@ -128,6 +132,7 @@ static void cp_reg_check_reset(gpointer key, gpointer value,  gpointer opaque)
      * both try to reset the same state field but to different values.
      */
     ARMCPRegInfo *ri = value;
+/* UNICORN-MOD: msvc-compat, guard unused variables in release builds */
 #ifndef NDEBUG
     ARMCPU *cpu = opaque;
     uint64_t oldvalue, newvalue;
@@ -137,6 +142,7 @@ static void cp_reg_check_reset(gpointer key, gpointer value,  gpointer opaque)
         return;
     }
 
+/* UNICORN-MOD: msvc-compat, guard assertion code */
 #ifndef NDEBUG
     oldvalue = read_raw_cp_reg(&cpu->env, ri);
 #endif
@@ -147,6 +153,7 @@ static void cp_reg_check_reset(gpointer key, gpointer value,  gpointer opaque)
 #endif
 }
 
+/* UNICORN-MOD: api-change, signature changed from DeviceState* to CPUState* */
 static void arm_cpu_reset(CPUState *dev)
 {
     CPUState *s = CPU(dev);
@@ -253,6 +260,7 @@ static void arm_cpu_reset(CPUState *dev)
 
         /* Load the initial SP and PC from offset 0 and 4 in the vector table */
         vecbase = env->v7m.vecbase[env->v7m.secure];
+/* UNICORN-BEGIN: dependency-removal, ROM loading disabled */
 #if 0
         rom = rom_ptr(vecbase, 8);
         if (rom) {
@@ -261,14 +269,16 @@ static void arm_cpu_reset(CPUState *dev)
              */
             initial_msp = ldl_p(rom);
             initial_pc = ldl_p(rom + 4);
-        } else 
+        } else
 #endif
+/* UNICORN-END */
         {
             /* Address zero not covered by a ROM blob, or the ROM blob
              * is in non-modifiable memory and this is a second reset after
              * it got copied into memory. In the latter case, rom_ptr
              * will return a NULL pointer and we should use ldl_phys instead.
              */
+/* UNICORN-MOD: context-passing */
 #ifdef UNICORN_ARCH_POSTFIX
             initial_msp = glue(ldl_phys, UNICORN_ARCH_POSTFIX)(s->uc, s->as, vecbase);
             initial_pc = glue(ldl_phys, UNICORN_ARCH_POSTFIX)(s->uc, s->as, vecbase + 4);
@@ -529,10 +539,12 @@ bool arm_cpu_exec_interrupt(CPUState *cs, int interrupt_request)
     return true;
 }
 
+/* UNICORN-MOD: dependency-removal, removed CONFIG_USER_ONLY guard */
 #if !defined(TARGET_AARCH64)
 static bool arm_v7m_cpu_exec_interrupt(CPUState *cs, int interrupt_request)
 {
     CPUClass *cc = CPU_GET_CLASS(cs);
+    /* UNICORN-MOD: device-removal, NVIC not used */
     // ARMCPU *cpu = ARM_CPU(cs);
     // CPUARMState *env = &cpu->env;
     bool ret = false;
@@ -544,6 +556,7 @@ static bool arm_v7m_cpu_exec_interrupt(CPUState *cs, int interrupt_request)
      * (which depends on state like BASEPRI, FAULTMASK and the
      * currently active exception).
      */
+    /* UNICORN-MOD: device-removal, NVIC check removed */
     if (interrupt_request & CPU_INTERRUPT_HARD) {
         // && (armv7m_nvic_can_take_pending_exception(env->nvic))) {
         cs->exception_index = EXCP_IRQ;
@@ -606,6 +619,7 @@ static inline void unset_feature(CPUARMState *env, int feature)
     env->features &= ~(1ULL << feature);
 }
 
+/* UNICORN-MOD: api-change, made static */
 static uint64_t arm_cpu_mp_affinity(int idx, uint8_t clustersz)
 {
     uint32_t Aff1 = idx / clustersz;
@@ -627,6 +641,7 @@ static void cpreg_hashtable_data_destroy(gpointer data)
     g_free(r);
 }
 
+/* UNICORN-MOD: api-change, Unicorn init function */
 void arm_cpu_initfn(struct uc_struct *uc, CPUState *obj)
 {
     ARMCPU *cpu = ARM_CPU(obj);
@@ -646,6 +661,7 @@ void arm_cpu_initfn(struct uc_struct *uc, CPUState *obj)
      */
     cpu->psci_version = 1; /* By default assume PSCI v0.1 */
 
+    /* UNICORN-MOD: api-change, hardcoded PSCI 0.2 */
     cpu->psci_version = 2; /* TCG implements PSCI 0.2 */
 }
 
@@ -673,6 +689,7 @@ unsigned int gt_cntfrq_period_ns(ARMCPU *cpu)
       NANOSECONDS_PER_SECOND / cpu->gt_cntfrq_hz : 1;
 }
 
+/* UNICORN-MOD: api-change, signature changed from Object* to CPUState* */
 void arm_cpu_post_init(CPUState *obj)
 {
     ARMCPU *cpu = ARM_CPU(obj);
@@ -685,6 +702,7 @@ void arm_cpu_post_init(CPUState *obj)
         set_feature(&cpu->env, ARM_FEATURE_PMSA);
     }
 
+    /* UNICORN-MOD: dependency-removal, simplified without QDev properties */
     if (arm_feature(&cpu->env, ARM_FEATURE_CBAR) ||
         arm_feature(&cpu->env, ARM_FEATURE_CBAR_RO)) {
         cpu->reset_cbar = 0;
@@ -746,22 +764,27 @@ void arm_cpu_post_init(CPUState *obj)
 
 static void arm_cpu_finalize_features(ARMCPU *cpu)
 {
+/* UNICORN-BEGIN: dependency-removal, SVE finalization disabled */
 #if 0
     if (arm_feature(&cpu->env, ARM_FEATURE_AARCH64)) {
         arm_cpu_sve_finalize(cpu);
     }
 #endif
+/* UNICORN-END */
 }
 
+/* UNICORN-MOD: api-change, Unicorn realize function */
 void arm_cpu_realizefn(struct uc_struct *uc, CPUState *dev)
 {
     CPUState *cs = CPU(dev);
     ARMCPU *cpu = ARM_CPU(dev);
     CPUARMState *env = &cpu->env;
+/* UNICORN-MOD: msvc-compat, guard unused variable */
 #ifndef NDEBUG
     bool no_aa32 = false;
 #endif
 
+/* UNICORN-BEGIN: device-removal, NVIC validation disabled */
 #if 0
     /* The NVIC and M-profile CPU are two halves of a single piece of
      * hardware; trying to use one without the other is a command line
@@ -783,6 +806,7 @@ void arm_cpu_realizefn(struct uc_struct *uc, CPUState *dev)
         }
     }
 #endif
+/* UNICORN-END */
 
     cpu_exec_realizefn(cs);
 
@@ -802,6 +826,7 @@ void arm_cpu_realizefn(struct uc_struct *uc, CPUState *dev)
         uint64_t t;
         uint32_t u;
 
+        /* UNICORN-MOD: api-change, FIELD_DP macro usage pattern */
         t = cpu->isar.id_aa64isar1;
         FIELD_DP64(t, ID_AA64ISAR1, JSCVT, 0, t);
         cpu->isar.id_aa64isar1 = t;
@@ -841,6 +866,7 @@ void arm_cpu_realizefn(struct uc_struct *uc, CPUState *dev)
 
         unset_feature(env, ARM_FEATURE_NEON);
 
+        /* UNICORN-MOD: api-change, FIELD_DP macro usage pattern */
         t = cpu->isar.id_aa64isar0;
         FIELD_DP64(t, ID_AA64ISAR0, DP, 0, t);
         cpu->isar.id_aa64isar0 = t;
@@ -879,6 +905,7 @@ void arm_cpu_realizefn(struct uc_struct *uc, CPUState *dev)
         uint64_t t;
         uint32_t u;
 
+        /* UNICORN-MOD: api-change, FIELD_DP macro usage pattern */
         t = cpu->isar.id_aa64isar0;
         FIELD_DP64(t, ID_AA64ISAR0, FHM, 0, t);
         cpu->isar.id_aa64isar0 = t;
@@ -902,6 +929,7 @@ void arm_cpu_realizefn(struct uc_struct *uc, CPUState *dev)
 
         unset_feature(env, ARM_FEATURE_THUMB_DSP);
 
+        /* UNICORN-MOD: api-change, FIELD_DP macro usage pattern */
         u = cpu->isar.id_isar1;
         FIELD_DP32(u, ID_ISAR1, EXTEND, 1, u);
         cpu->isar.id_isar1 = u;
@@ -935,6 +963,7 @@ void arm_cpu_realizefn(struct uc_struct *uc, CPUState *dev)
      * for TCG would a consistency-check failure be a QEMU bug.
      */
     if (arm_feature(&cpu->env, ARM_FEATURE_AARCH64)) {
+        /* UNICORN-MOD: msvc-compat, guard unused variable */
 #ifndef NDEBUG
         no_aa32 = !cpu_isar_feature(aa64_aa32, cpu);
 #else
@@ -951,6 +980,7 @@ void arm_cpu_realizefn(struct uc_struct *uc, CPUState *dev)
          * Presence of EL2 itself is ARM_FEATURE_EL2, and of the
          * Security Extensions is ARM_FEATURE_EL3.
          */
+        /* UNICORN-MOD: msvc-compat, guard assertion */
 #ifndef NDEBUG
         assert(no_aa32 || cpu_isar_feature(aa32_arm_div, cpu));
 #endif
@@ -979,6 +1009,7 @@ void arm_cpu_realizefn(struct uc_struct *uc, CPUState *dev)
     if (arm_feature(env, ARM_FEATURE_V6)) {
         set_feature(env, ARM_FEATURE_V5);
         if (!arm_feature(env, ARM_FEATURE_M)) {
+            /* UNICORN-MOD: msvc-compat, guard assertion */
 #ifndef NDEBUG
             assert(no_aa32 || cpu_isar_feature(aa32_jazelle, cpu));
 #endif
@@ -1023,6 +1054,7 @@ void arm_cpu_realizefn(struct uc_struct *uc, CPUState *dev)
         pagebits = 10;
     }
 
+    /* UNICORN-MOD: context-passing, uc parameter added */
     if (!set_preferred_target_page_bits(cpu->uc, pagebits)) {
         /* This can only ever happen for hotplugging a CPU, or if
          * the board code incorrectly creates a CPU which it has
@@ -1079,9 +1111,11 @@ void arm_cpu_realizefn(struct uc_struct *uc, CPUState *dev)
     if (arm_feature(env, ARM_FEATURE_PMU)) {
         pmu_init(cpu);
 
+        /* UNICORN-MOD: api-change, simplified PMU hooks */
         arm_register_pre_el_change_hook(cpu, &pmu_pre_el_change, 0);
         arm_register_el_change_hook(cpu, &pmu_post_el_change, 0);
     } else {
+        /* UNICORN-MOD: api-change, FIELD_DP macro usage pattern */
         FIELD_DP64(cpu->isar.id_aa64dfr0, ID_AA64DFR0, PMUVER, 0, cpu->isar.id_aa64dfr0);
         FIELD_DP32(cpu->isar.id_dfr0, ID_DFR0, PERFMON, 0, cpu->isar.id_dfr0);
         cpu->pmceid0 = 0;
@@ -1153,8 +1187,10 @@ void arm_cpu_realizefn(struct uc_struct *uc, CPUState *dev)
 
     register_cp_regs_for_features(cpu);
 
+    /* UNICORN-MOD: dependency-removal, simplified SMP */
     unsigned int smp_cpus = 1;
 
+    /* UNICORN-MOD: dependency-removal, simplified address space init */
     if (cpu->has_el3 || arm_feature(env, ARM_FEATURE_M_SECURITY)) {
         cs->num_ases = 2;
 
@@ -1194,6 +1230,7 @@ static void arm926_initfn(struct uc_struct *uc, CPUState *obj)
      * ARMv5 does not have the ID_ISAR registers, but we can still
      * set the field to indicate Jazelle support within QEMU.
      */
+    /* UNICORN-MOD: api-change, FIELD_DP macro usage pattern */
     FIELD_DP32(cpu->isar.id_isar1, ID_ISAR1, JAZELLE, 1, cpu->isar.id_isar1);
     /*
      * Similarly, we need to set MVFR0 fields to enable vfp and short vector
@@ -1216,6 +1253,7 @@ static void arm946_initfn(struct uc_struct *uc, CPUState *obj)
     cpu->reset_sctlr = 0x00000078;
 }
 
+/* UNICORN-MOD: initfn-sig */
 static void arm1026_initfn(struct uc_struct *uc, CPUState *obj)
 {
     ARMCPU *cpu = ARM_CPU(obj);
@@ -1255,6 +1293,7 @@ static void arm1026_initfn(struct uc_struct *uc, CPUState *obj)
     }
 }
 
+/* UNICORN-MOD: initfn-sig */
 static void arm1136_r2_initfn(struct uc_struct *uc, CPUState *obj)
 {
     ARMCPU *cpu = ARM_CPU(obj);
@@ -1291,6 +1330,7 @@ static void arm1136_r2_initfn(struct uc_struct *uc, CPUState *obj)
     cpu->reset_auxcr = 7;
 }
 
+/* UNICORN-MOD: initfn-sig */
 static void arm1136_initfn(struct uc_struct *uc, CPUState *obj)
 {
     ARMCPU *cpu = ARM_CPU(obj);
@@ -1321,6 +1361,7 @@ static void arm1136_initfn(struct uc_struct *uc, CPUState *obj)
     cpu->reset_auxcr = 7;
 }
 
+/* UNICORN-MOD: initfn-sig */
 static void arm1176_initfn(struct uc_struct *uc, CPUState *obj)
 {
     ARMCPU *cpu = ARM_CPU(obj);
@@ -1352,6 +1393,7 @@ static void arm1176_initfn(struct uc_struct *uc, CPUState *obj)
     cpu->reset_auxcr = 7;
 }
 
+/* UNICORN-MOD: initfn-sig */
 static void arm11mpcore_initfn(struct uc_struct *uc, CPUState *obj)
 {
     ARMCPU *cpu = ARM_CPU(obj);
@@ -1380,6 +1422,7 @@ static void arm11mpcore_initfn(struct uc_struct *uc, CPUState *obj)
     cpu->reset_auxcr = 1;
 }
 
+/* UNICORN-MOD: initfn-sig */
 static void cortex_m0_initfn(struct uc_struct *uc, CPUState *obj)
 {
     ARMCPU *cpu = ARM_CPU(obj);
@@ -1389,6 +1432,7 @@ static void cortex_m0_initfn(struct uc_struct *uc, CPUState *obj)
     cpu->midr = 0x410cc200;
 }
 
+/* UNICORN-MOD: initfn-sig */
 static void cortex_m3_initfn(struct uc_struct *uc, CPUState *obj)
 {
     ARMCPU *cpu = ARM_CPU(obj);
@@ -1414,6 +1458,7 @@ static void cortex_m3_initfn(struct uc_struct *uc, CPUState *obj)
     cpu->isar.id_isar6 = 0x00000000;
 }
 
+/* UNICORN-MOD: initfn-sig */
 static void cortex_m4_initfn(struct uc_struct *uc, CPUState *obj)
 {
     ARMCPU *cpu = ARM_CPU(obj);
@@ -1444,6 +1489,7 @@ static void cortex_m4_initfn(struct uc_struct *uc, CPUState *obj)
     cpu->isar.id_isar6 = 0x00000000;
 }
 
+/* UNICORN-MOD: initfn-sig */
 static void cortex_m7_initfn(struct uc_struct *uc, CPUState *obj)
 {
     ARMCPU *cpu = ARM_CPU(obj);
@@ -1474,6 +1520,7 @@ static void cortex_m7_initfn(struct uc_struct *uc, CPUState *obj)
     cpu->isar.id_isar6 = 0x00000000;
 }
 
+/* UNICORN-MOD: initfn-sig */
 static void cortex_m33_initfn(struct uc_struct *uc, CPUState *obj)
 {
     ARMCPU *cpu = ARM_CPU(obj);
@@ -1508,6 +1555,7 @@ static void cortex_m33_initfn(struct uc_struct *uc, CPUState *obj)
     cpu->ctr = 0x8000c000;
 }
 
+/* UNICORN-MOD: api-change, added uc parameter */
 static void arm_v7m_class_init(struct uc_struct *uc, CPUClass *oc, void *data)
 {
     ARMCPUClass *acc = ARM_CPU_CLASS(oc);
@@ -1530,6 +1578,7 @@ static ARMCPRegInfo cortexr5_cp_reginfo[] = {
     REGINFO_SENTINEL
 };
 
+/* UNICORN-MOD: initfn-sig */
 static void cortex_r5_initfn(struct uc_struct *uc, CPUState *obj)
 {
     ARMCPU *cpu = ARM_CPU(obj);
@@ -1559,6 +1608,7 @@ static void cortex_r5_initfn(struct uc_struct *uc, CPUState *obj)
     define_arm_cp_regs(cpu, cortexr5_cp_reginfo);
 }
 
+/* UNICORN-MOD: initfn-sig */
 static void cortex_r5f_initfn(struct uc_struct *uc, CPUState *obj)
 {
     ARMCPU *cpu = ARM_CPU(obj);
@@ -1576,6 +1626,7 @@ static const ARMCPRegInfo cortexa8_cp_reginfo[] = {
     REGINFO_SENTINEL
 };
 
+/* UNICORN-MOD: initfn-sig */
 static void cortex_a8_initfn(struct uc_struct *uc, CPUState *obj)
 {
     ARMCPU *cpu = ARM_CPU(obj);
@@ -1642,6 +1693,7 @@ static const ARMCPRegInfo cortexa9_cp_reginfo[] = {
     REGINFO_SENTINEL
 };
 
+/* UNICORN-MOD: initfn-sig */
 static void cortex_a9_initfn(struct uc_struct *uc, CPUState *obj)
 {
     ARMCPU *cpu = ARM_CPU(obj);
@@ -1747,6 +1799,7 @@ static void cortex_a7_initfn(struct uc_struct *uc, CPUState *obj)
     define_arm_cp_regs(cpu, cortexa15_cp_reginfo); /* Same as A15 */
 }
 
+/* UNICORN-MOD: initfn-sig */
 static void cortex_a15_initfn(struct uc_struct *uc, CPUState *obj)
 {
     ARMCPU *cpu = ARM_CPU(obj);
@@ -1787,6 +1840,7 @@ static void cortex_a15_initfn(struct uc_struct *uc, CPUState *obj)
     define_arm_cp_regs(cpu, cortexa15_cp_reginfo);
 }
 
+/* UNICORN-MOD: initfn-sig */
 static void ti925t_initfn(struct uc_struct *uc, CPUState *obj)
 {
     ARMCPU *cpu = ARM_CPU(obj);
@@ -1797,6 +1851,7 @@ static void ti925t_initfn(struct uc_struct *uc, CPUState *obj)
     cpu->reset_sctlr = 0x00000070;
 }
 
+/* UNICORN-MOD: initfn-sig */
 static void sa1100_initfn(struct uc_struct *uc, CPUState *obj)
 {
     ARMCPU *cpu = ARM_CPU(obj);
@@ -1816,6 +1871,7 @@ static void sa1110_initfn(struct uc_struct *uc, CPUState *obj)
     cpu->reset_sctlr = 0x00000070;
 }
 
+/* UNICORN-MOD: initfn-sig */
 static void pxa250_initfn(struct uc_struct *uc, CPUState *obj)
 {
     ARMCPU *cpu = ARM_CPU(obj);
@@ -1827,6 +1883,7 @@ static void pxa250_initfn(struct uc_struct *uc, CPUState *obj)
     cpu->reset_sctlr = 0x00000078;
 }
 
+/* UNICORN-MOD: initfn-sig */
 static void pxa255_initfn(struct uc_struct *uc, CPUState *obj)
 {
     ARMCPU *cpu = ARM_CPU(obj);
@@ -1838,6 +1895,7 @@ static void pxa255_initfn(struct uc_struct *uc, CPUState *obj)
     cpu->reset_sctlr = 0x00000078;
 }
 
+/* UNICORN-MOD: initfn-sig */
 static void pxa260_initfn(struct uc_struct *uc, CPUState *obj)
 {
     ARMCPU *cpu = ARM_CPU(obj);
@@ -1849,6 +1907,7 @@ static void pxa260_initfn(struct uc_struct *uc, CPUState *obj)
     cpu->reset_sctlr = 0x00000078;
 }
 
+/* UNICORN-MOD: initfn-sig */
 static void pxa261_initfn(struct uc_struct *uc, CPUState *obj)
 {
     ARMCPU *cpu = ARM_CPU(obj);
@@ -1860,6 +1919,7 @@ static void pxa261_initfn(struct uc_struct *uc, CPUState *obj)
     cpu->reset_sctlr = 0x00000078;
 }
 
+/* UNICORN-MOD: initfn-sig */
 static void pxa262_initfn(struct uc_struct *uc, CPUState *obj)
 {
     ARMCPU *cpu = ARM_CPU(obj);
@@ -1871,6 +1931,7 @@ static void pxa262_initfn(struct uc_struct *uc, CPUState *obj)
     cpu->reset_sctlr = 0x00000078;
 }
 
+/* UNICORN-MOD: initfn-sig */
 static void pxa270a0_initfn(struct uc_struct *uc, CPUState *obj)
 {
     ARMCPU *cpu = ARM_CPU(obj);
@@ -1883,6 +1944,7 @@ static void pxa270a0_initfn(struct uc_struct *uc, CPUState *obj)
     cpu->reset_sctlr = 0x00000078;
 }
 
+/* UNICORN-MOD: initfn-sig */
 static void pxa270a1_initfn(struct uc_struct *uc, CPUState *obj)
 {
     ARMCPU *cpu = ARM_CPU(obj);
@@ -1895,6 +1957,7 @@ static void pxa270a1_initfn(struct uc_struct *uc, CPUState *obj)
     cpu->reset_sctlr = 0x00000078;
 }
 
+/* UNICORN-MOD: initfn-sig */
 static void pxa270b0_initfn(struct uc_struct *uc, CPUState *obj)
 {
     ARMCPU *cpu = ARM_CPU(obj);
@@ -1907,6 +1970,7 @@ static void pxa270b0_initfn(struct uc_struct *uc, CPUState *obj)
     cpu->reset_sctlr = 0x00000078;
 }
 
+/* UNICORN-MOD: initfn-sig */
 static void pxa270b1_initfn(struct uc_struct *uc, CPUState *obj)
 {
     ARMCPU *cpu = ARM_CPU(obj);
@@ -1919,6 +1983,7 @@ static void pxa270b1_initfn(struct uc_struct *uc, CPUState *obj)
     cpu->reset_sctlr = 0x00000078;
 }
 
+/* UNICORN-MOD: initfn-sig */
 static void pxa270c0_initfn(struct uc_struct *uc, CPUState *obj)
 {
     ARMCPU *cpu = ARM_CPU(obj);
@@ -1931,6 +1996,7 @@ static void pxa270c0_initfn(struct uc_struct *uc, CPUState *obj)
     cpu->reset_sctlr = 0x00000078;
 }
 
+/* UNICORN-MOD: initfn-sig */
 static void pxa270c5_initfn(struct uc_struct *uc, CPUState *obj)
 {
     ARMCPU *cpu = ARM_CPU(obj);
@@ -1949,6 +2015,7 @@ static void pxa270c5_initfn(struct uc_struct *uc, CPUState *obj)
  * The version of '-cpu max' for qemu-system-aarch64 is defined in cpu64.c;
  * this only needs to handle 32 bits.
  */
+/* UNICORN-MOD: initfn-sig */
 static void arm_max_initfn(struct uc_struct *uc, CPUState *obj)
 {
     ARMCPU *cpu = ARM_CPU(obj);
